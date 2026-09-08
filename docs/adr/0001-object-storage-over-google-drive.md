@@ -1,0 +1,3 @@
+# Object Storage Over Google Drive for Event Photos
+
+The system will use S3-compatible object storage (such as Cloudflare R2) instead of direct Google Drive integration for photo uploads and serving during live events. Google Drive imposes strict per-user rate limits and access throttling when multiple guests request images concurrently, whereas R2 offers a 10 GB free tier with zero egress fees and high-throughput image delivery. An export mechanism will allow hosts to download all photos as a bundle or archive them to their personal storage after the event. A local filesystem storage adapter is used in development when cloud credentials are omitted.

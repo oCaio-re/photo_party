@@ -1,0 +1,3 @@
+# Visual Identity and Flagship Wedding Aesthetic
+
+The platform adopts the refined botanical wedding aesthetic from `caioesarah.vercel.app` across all pages (Live Gallery, Table Cards, Admin Dashboard, and Landing Page). The design system standardizes on Marsala Rose (`#cb7d87`), Sage Olive (`#5a6248`, `#49503b`), Warm Cream/Linen (`#fbead6`), Golden Sand (`#ebca90`), modern geometric Poppins headings, and crisp Inter UI typography. The platform is pre-seeded with the "Casamento de Caio & Sarah" as its flagship showcase event, featuring the official monogram vector asset, while preserving multi-event capabilities.

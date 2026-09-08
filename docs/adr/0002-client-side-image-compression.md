@@ -1,0 +1,3 @@
+# Client-Side Image Compression and Normalization
+
+Photos uploaded by guests are normalized and compressed directly in the browser before being transmitted to the server (converted to WebP/JPEG, capped at 2048px on the longest edge at ~85% quality). Mobile phone cameras produce 15MB–25MB raw or HEIC files that cause timeouts, failed uploads, and excessive bandwidth consumption over congested venue networks. Processing on the client reduces payloads by ~95% (~600KB per photo), ensures instantaneous uploads even on weak mobile connections, and standardizes cross-device rendering without heavy server-side processing overhead.
