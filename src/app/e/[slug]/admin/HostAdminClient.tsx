@@ -19,6 +19,8 @@ import {
   Plus,
   RefreshCw,
   Tv,
+  Heart,
+  MessageSquare,
 } from "lucide-react";
 import { MonogramLogo } from "@/components/MonogramLogo";
 import { TableCardsPrinter, TableItem } from "@/components/TableCardsPrinter";
@@ -430,6 +432,18 @@ export function HostAdminClient({
                           &ldquo;{photo.message}&rdquo;
                         </p>
                       )}
+
+                      {/* Engagement stats */}
+                      <div className="flex items-center gap-3 mt-2 text-[11px] text-[#5a6248]">
+                        <span className="flex items-center gap-1 font-medium">
+                          <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                          {photo.likeCount || 0}
+                        </span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <MessageSquare className="w-3.5 h-3.5 text-[#cb7d87]" />
+                          {photo.commentCount || 0}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Action buttons */}

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, ensureSchema } from "@/db";
 import { events, tables } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureSchema();
+
     const body = await request.json();
     const { title, slug: customSlug, moderationPolicy = "immediate", uploadHours } = body;
 
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     let slug = baseSlug;
     let counter = 1;
     while (true) {
-      const existing = db.select().from(events).where(eq(events.slug, slug)).all();
+      const existing = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
       if (existing.length === 0) break;
       slug = `${baseSlug}-${counter++}`;
     }
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
       uploadDeadline = new Date(now.getTime() + Number(uploadHours) * 60 * 60 * 1000);
     }
 
-    db.insert(events)
+    await db.insert(events)
       .values({
         id: eventId,
         slug,
@@ -50,20 +52,18 @@ export async function POST(request: NextRequest) {
         uploadDeadline,
         isUploadClosed: false,
         createdAt: now,
-      })
-      .run();
+      });
 
     // Default initial tables
     const defaultTables = ["Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5"];
     for (const tableName of defaultTables) {
-      db.insert(tables)
+      await db.insert(tables)
         .values({
           id: crypto.randomUUID(),
           eventId,
           identifier: tableName,
           createdAt: now,
-        })
-        .run();
+        });
     }
 
     return NextResponse.json({

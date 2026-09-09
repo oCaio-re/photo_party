@@ -20,13 +20,13 @@ export async function GET(
   try {
     const { slug } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
 
     const hostOrigin = request.nextUrl.origin;
-    const allTables = db.select().from(tables).where(eq(tables.eventId, event.id)).all();
+    const allTables = await db.select().from(tables).where(eq(tables.eventId, event.id));
 
     // Ensure all tables have QR codes generated
     const tablesWithQr = await Promise.all(
@@ -59,7 +59,7 @@ export async function POST(
   try {
     const { slug } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -82,15 +82,13 @@ export async function POST(
           const guestUrl = `${origin}/e/${event.slug}?table=${id}`;
           const qrCodeDataUrl = await generateQrCodeDataUrl(guestUrl);
 
-          db.insert(tables)
-            .values({
-              id,
-              eventId: event.id,
-              identifier: name.trim(),
-              qrCodeDataUrl,
-              createdAt: now,
-            })
-            .run();
+          await db.insert(tables).values({
+            id,
+            eventId: event.id,
+            identifier: name.trim(),
+            qrCodeDataUrl,
+            createdAt: now,
+          });
 
           created.push({ id, identifier: name.trim(), qrCodeDataUrl, guestUrl });
         }
@@ -103,15 +101,13 @@ export async function POST(
         const guestUrl = `${origin}/e/${event.slug}?table=${id}`;
         const qrCodeDataUrl = await generateQrCodeDataUrl(guestUrl);
 
-        db.insert(tables)
-          .values({
-            id,
-            eventId: event.id,
-            identifier,
-            qrCodeDataUrl,
-            createdAt: now,
-          })
-          .run();
+        await db.insert(tables).values({
+          id,
+          eventId: event.id,
+          identifier,
+          qrCodeDataUrl,
+          createdAt: now,
+        });
 
         created.push({ id, identifier, qrCodeDataUrl, guestUrl });
       }

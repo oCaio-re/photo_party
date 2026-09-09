@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { db } from "@/db";
+import { db, ensureSchema } from "@/db";
 import { events, tables, photos } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { MonogramLogo } from "@/components/MonogramLogo";
 import { GuestUploadModal } from "@/components/GuestUploadModal";
 import { LiveGalleryView, PhotoItem } from "@/components/LiveGalleryView";
-import { Tv, Sparkles, Clock, ShieldAlert } from "lucide-react";
+import { Tv, Sparkles, Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,9 @@ export default async function EventPage({ params, searchParams }: EventPageProps
   const { slug } = await params;
   const { table: tableParam } = await searchParams;
 
-  const event = db.select().from(events).where(eq(events.slug, slug)).get();
+  await ensureSchema();
+
+  const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
   if (!event) {
     notFound();
   }
@@ -27,21 +29,21 @@ export default async function EventPage({ params, searchParams }: EventPageProps
   // Resolve table if specified in query param (either by table ID or identifier match)
   let currentTable: typeof tables.$inferSelect | undefined;
   if (tableParam) {
-    const tableById = db.select().from(tables).where(eq(tables.id, tableParam)).get();
+    const [tableById] = await db.select().from(tables).where(eq(tables.id, tableParam)).limit(1);
     if (tableById && tableById.eventId === event.id) {
       currentTable = tableById;
     } else {
-      const tableByName = db
+      const [tableByName] = await db
         .select()
         .from(tables)
         .where(and(eq(tables.eventId, event.id), eq(tables.identifier, tableParam)))
-        .get();
+        .limit(1);
       if (tableByName) currentTable = tableByName;
     }
   }
 
   // Initial approved photos
-  const rawPhotos = db
+  const rawPhotos = await db
     .select({
       id: photos.id,
       url: photos.url,
@@ -51,12 +53,13 @@ export default async function EventPage({ params, searchParams }: EventPageProps
       createdAt: photos.createdAt,
       tableId: photos.tableId,
       tableIdentifier: tables.identifier,
+      likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
+      commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
     })
     .from(photos)
     .leftJoin(tables, eq(photos.tableId, tables.id))
     .where(and(eq(photos.eventId, event.id), eq(photos.status, "approved")))
-    .orderBy(desc(photos.createdAt))
-    .all();
+    .orderBy(desc(photos.createdAt));
 
   const formattedPhotos: PhotoItem[] = rawPhotos.map((p) => ({
     id: p.id,
@@ -64,9 +67,11 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     guestName: p.guestName,
     message: p.message,
     status: p.status,
-    createdAt: p.createdAt ? new Date(p.createdAt).getTime() : Date.now(),
+    createdAt: p.createdAt ? new Date(p.createdAt).getTime() : 0,
     tableId: p.tableId,
     tableIdentifier: p.tableIdentifier,
+    likeCount: p.likeCount || 0,
+    commentCount: p.commentCount || 0,
   }));
 
   const isClosed =

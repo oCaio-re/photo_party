@@ -21,7 +21,7 @@ export async function GET(
   try {
     const { slug } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -31,7 +31,7 @@ export async function GET(
     }
 
     // Get all approved photos
-    const allPhotos = db
+    const allPhotos = await db
       .select({
         id: photos.id,
         storagePath: photos.storagePath,
@@ -42,8 +42,7 @@ export async function GET(
       })
       .from(photos)
       .leftJoin(tables, eq(photos.tableId, tables.id))
-      .where(and(eq(photos.eventId, event.id), eq(photos.status, "approved")))
-      .all();
+      .where(and(eq(photos.eventId, event.id), eq(photos.status, "approved")));
 
     if (allPhotos.length === 0) {
       return NextResponse.json({ error: "Nenhuma foto aprovada para exportar." }, { status: 400 });

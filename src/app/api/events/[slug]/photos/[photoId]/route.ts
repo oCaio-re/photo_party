@@ -19,7 +19,7 @@ export async function PATCH(
   try {
     const { slug, photoId } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -35,10 +35,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Estado inválido" }, { status: 400 });
     }
 
-    db.update(photos)
+    await db
+      .update(photos)
       .set({ status })
-      .where(and(eq(photos.id, photoId), eq(photos.eventId, event.id)))
-      .run();
+      .where(and(eq(photos.id, photoId), eq(photos.eventId, event.id)));
 
     return NextResponse.json({ success: true, photoId, status });
   } catch (error) {
@@ -54,7 +54,7 @@ export async function DELETE(
   try {
     const { slug, photoId } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -63,11 +63,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const photo = db
+    const [photo] = await db
       .select()
       .from(photos)
       .where(and(eq(photos.id, photoId), eq(photos.eventId, event.id)))
-      .get();
+      .limit(1);
 
     if (!photo) {
       return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
@@ -82,7 +82,7 @@ export async function DELETE(
     }
 
     // Delete from database
-    db.delete(photos).where(eq(photos.id, photoId)).run();
+    await db.delete(photos).where(eq(photos.id, photoId));
 
     return NextResponse.json({ success: true, photoId });
   } catch (error) {

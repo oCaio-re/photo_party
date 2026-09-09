@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Camera, Image as ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Camera, X, Send, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { compressImage } from "@/lib/client-compress";
 
 interface GuestUploadModalProps {
@@ -117,8 +117,8 @@ export function GuestUploadModal({
         resetForm();
         setIsOpen(false);
       }, 1800);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Falha ao enviar a foto. Tente novamente.");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Falha ao enviar a foto. Tente novamente.");
     } finally {
       setIsUploading(false);
     }

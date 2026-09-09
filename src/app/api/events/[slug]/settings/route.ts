@@ -18,7 +18,7 @@ export async function PATCH(
   try {
     const { slug } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -48,7 +48,7 @@ export async function PATCH(
       updateData.title = title.trim();
     }
 
-    db.update(events).set(updateData).where(eq(events.id, event.id)).run();
+    await db.update(events).set(updateData).where(eq(events.id, event.id));
 
     return NextResponse.json({ success: true, updated: updateData });
   } catch (error) {

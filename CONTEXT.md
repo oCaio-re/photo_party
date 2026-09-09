@@ -47,3 +47,11 @@ _Avoid_: Curation mode, review filter
 **Photo Bundle**:
 A single downloadable archive containing all photos collected during an Event.
 _Avoid_: Zip file, backup, dump
+
+**Like**:
+A positive reaction toggled on a Photo by a Guest, limited to one per Guest per Photo.
+_Avoid_: Upvote, favorite, clap, reaction counter
+
+**Comment**:
+A text message posted by an identified Guest in response to a Photo, displayed in the Live Gallery under the Photo.
+_Avoid_: Reply, note, review, chat message

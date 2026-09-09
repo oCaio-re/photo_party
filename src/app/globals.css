@@ -68,3 +68,31 @@ h1, h2, h3, h4, .font-serif, .font-heading {
     border: 1px dashed #cb7d87 !important;
   }
 }
+
+/* Floating animations for Live Slideshow comment bubbles */
+@keyframes float-balloon-left {
+  0%, 100% {
+    transform: translateY(0px) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-0.5deg);
+  }
+}
+
+@keyframes float-balloon-right {
+  0%, 100% {
+    transform: translateY(0px) rotate(1.5deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(0.5deg);
+  }
+}
+
+.animate-float-left {
+  animation: float-balloon-left 4.5s ease-in-out infinite;
+}
+
+.animate-float-right {
+  animation: float-balloon-right 5s ease-in-out infinite;
+}
+

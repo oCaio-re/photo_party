@@ -13,7 +13,7 @@ export async function POST(
   try {
     const { slug } = await context.params;
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -64,11 +64,11 @@ export async function POST(
     // Optional table check
     let validTableId: string | null = null;
     if (tableId) {
-      const tableRecord = db
+      const [tableRecord] = await db
         .select()
         .from(tables)
         .where(eq(tables.id, tableId))
-        .get();
+        .limit(1);
       if (tableRecord && tableRecord.eventId === event.id) {
         validTableId = tableRecord.id;
       }
@@ -87,19 +87,17 @@ export async function POST(
     const photoId = crypto.randomUUID();
     const now = new Date();
 
-    db.insert(photos)
-      .values({
-        id: photoId,
-        eventId: event.id,
-        tableId: validTableId,
-        guestName: guestName ? guestName.trim().slice(0, 100) : null,
-        message: message ? message.trim().slice(0, 500) : null,
-        storagePath,
-        url,
-        status: initialStatus,
-        createdAt: now,
-      })
-      .run();
+    await db.insert(photos).values({
+      id: photoId,
+      eventId: event.id,
+      tableId: validTableId,
+      guestName: guestName ? guestName.trim().slice(0, 100) : null,
+      message: message ? message.trim().slice(0, 500) : null,
+      storagePath,
+      url,
+      status: initialStatus,
+      createdAt: now,
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { events, photos, tables } from "@/db/schema";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { events, photos, tables, photoComments } from "@/db/schema";
+import { eq, and, gt, desc, sql, inArray } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +11,7 @@ export async function GET(
     const { slug } = await context.params;
     const { searchParams } = new URL(request.url);
 
-    const event = db.select().from(events).where(eq(events.slug, slug)).get();
+    const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
@@ -21,6 +21,11 @@ export async function GET(
     const keyParam = searchParams.get("key");
     const providedKey = authHeader?.replace(/^Bearer\s+/i, "") || keyParam;
     const isHost = providedKey === event.hostKey;
+
+    const guestSessionId =
+      request.headers.get("x-guest-session-id") ||
+      searchParams.get("guestSessionId") ||
+      "";
 
     const requestedStatus = searchParams.get("status"); // 'approved' | 'pending' | 'hidden' | 'all'
     const sinceParam = searchParams.get("since");
@@ -42,7 +47,7 @@ export async function GET(
       conditions.push(eq(photos.status, "approved"));
     }
 
-    const results = db
+    const results = await db
       .select({
         id: photos.id,
         url: photos.url,
@@ -52,15 +57,57 @@ export async function GET(
         createdAt: photos.createdAt,
         tableId: photos.tableId,
         tableIdentifier: tables.identifier,
+        likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
+        commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
+        hasLiked: guestSessionId
+          ? sql<boolean>`EXISTS(SELECT 1 FROM photo_likes WHERE photo_likes.photo_id = ${photos.id} AND photo_likes.guest_session_id = ${guestSessionId})`.mapWith(Boolean)
+          : sql<boolean>`false`.mapWith(Boolean),
       })
       .from(photos)
       .leftJoin(tables, eq(photos.tableId, tables.id))
       .where(and(...conditions))
-      .orderBy(desc(photos.createdAt))
-      .all();
+      .orderBy(desc(photos.createdAt));
+
+    const photoIds = results.map((p) => p.id);
+    const commentsByPhoto = new Map<
+      string,
+      Array<{ id: string; guestName: string; content: string; createdAt: Date }>
+    >();
+
+    if (photoIds.length > 0) {
+      const allRecentComments = await db
+        .select({
+          id: photoComments.id,
+          photoId: photoComments.photoId,
+          guestName: photoComments.guestName,
+          content: photoComments.content,
+          createdAt: photoComments.createdAt,
+        })
+        .from(photoComments)
+        .where(inArray(photoComments.photoId, photoIds))
+        .orderBy(desc(photoComments.createdAt));
+
+      for (const c of allRecentComments) {
+        const list = commentsByPhoto.get(c.photoId) || [];
+        if (list.length < 4) {
+          list.push({
+            id: c.id,
+            guestName: c.guestName,
+            content: c.content,
+            createdAt: c.createdAt,
+          });
+          commentsByPhoto.set(c.photoId, list);
+        }
+      }
+    }
+
+    const photosWithComments = results.map((p) => ({
+      ...p,
+      recentComments: commentsByPhoto.get(p.id) || [],
+    }));
 
     return NextResponse.json({
-      photos: results,
+      photos: photosWithComments,
       timestamp: Date.now(),
       event: {
         title: event.title,
