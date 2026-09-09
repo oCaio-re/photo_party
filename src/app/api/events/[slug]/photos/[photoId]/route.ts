@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { events, photos } from "@/db/schema";
+import { events, photos, photoLikes, photoComments } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getStorageProvider } from "@/lib/storage";
 
@@ -59,10 +59,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
 
-    if (!verifyHostKey(request, event.hostKey)) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
     const [photo] = await db
       .select()
       .from(photos)
@@ -73,6 +69,27 @@ export async function DELETE(
       return NextResponse.json({ error: "Foto não encontrada" }, { status: 404 });
     }
 
+    const isHost = verifyHostKey(request, event.hostKey);
+    const url = new URL(request.url);
+    const guestSessionId = (
+      request.headers.get("x-guest-session-id") ||
+      url.searchParams.get("guestSessionId") ||
+      ""
+    ).trim();
+
+    const isAuthor = Boolean(
+      guestSessionId &&
+      photo.guestSessionId &&
+      photo.guestSessionId === guestSessionId
+    );
+
+    if (!isHost && !isAuthor) {
+      return NextResponse.json(
+        { error: "Você só tem permissão para apagar fotos enviadas por você." },
+        { status: 403 }
+      );
+    }
+
     // Delete from storage
     try {
       const storage = getStorageProvider();
@@ -81,7 +98,9 @@ export async function DELETE(
       console.warn("Storage deletion warning:", e);
     }
 
-    // Delete from database
+    // Cleanly delete photo interactions and the photo record
+    await db.delete(photoLikes).where(eq(photoLikes.photoId, photoId));
+    await db.delete(photoComments).where(eq(photoComments.photoId, photoId));
     await db.delete(photos).where(eq(photos.id, photoId));
 
     return NextResponse.json({ success: true, photoId });

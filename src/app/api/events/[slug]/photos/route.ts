@@ -57,6 +57,7 @@ export async function GET(
         createdAt: photos.createdAt,
         tableId: photos.tableId,
         tableIdentifier: tables.identifier,
+        guestSessionId: photos.guestSessionId,
         likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
         commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
         hasLiked: guestSessionId
@@ -101,10 +102,14 @@ export async function GET(
       }
     }
 
-    const photosWithComments = results.map((p) => ({
-      ...p,
-      recentComments: commentsByPhoto.get(p.id) || [],
-    }));
+    const photosWithComments = results.map((p) => {
+      const { guestSessionId: photoOwnerSessionId, ...safeProps } = p;
+      return {
+        ...safeProps,
+        canDelete: isHost || (Boolean(guestSessionId) && photoOwnerSessionId === guestSessionId),
+        recentComments: commentsByPhoto.get(p.id) || [],
+      };
+    });
 
     return NextResponse.json({
       photos: photosWithComments,

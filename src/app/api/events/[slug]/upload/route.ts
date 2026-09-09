@@ -38,6 +38,14 @@ export async function POST(
     const tableId = formData.get("tableId") as string | null;
     const guestName = formData.get("guestName") as string | null;
     const message = formData.get("message") as string | null;
+    const rawSessionId =
+      (formData.get("guestSessionId") as string | null) ||
+      request.headers.get("x-guest-session-id") ||
+      "";
+    const guestSessionId =
+      typeof rawSessionId === "string" && rawSessionId.trim()
+        ? rawSessionId.trim().slice(0, 100)
+        : null;
 
     if (!file) {
       return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
@@ -92,6 +100,7 @@ export async function POST(
       eventId: event.id,
       tableId: validTableId,
       guestName: guestName ? guestName.trim().slice(0, 100) : null,
+      guestSessionId,
       message: message ? message.trim().slice(0, 500) : null,
       storagePath,
       url,
@@ -107,6 +116,7 @@ export async function POST(
         status: initialStatus,
         guestName,
         message,
+        canDelete: true,
         createdAt: now,
       },
       message:

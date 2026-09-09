@@ -55,3 +55,7 @@ _Avoid_: Upvote, favorite, clap, reaction counter
 **Comment**:
 A text message posted by an identified Guest in response to a Photo, displayed in the Live Gallery under the Photo.
 _Avoid_: Reply, note, review, chat message
+
+**Photo Deletion**:
+The ability for a Guest to permanently remove a Photo they previously uploaded to an Event, or for a Host to remove any Photo during moderation.
+_Avoid_: Unpublish, trash bin, purge

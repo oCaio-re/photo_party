@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Camera, X, Send, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { compressImage } from "@/lib/client-compress";
 
 interface GuestUploadModalProps {
@@ -29,26 +29,52 @@ export function GuestUploadModal({
   const [guestName, setGuestName] = useState("");
   const [message, setMessage] = useState("");
 
+  // Pre-fill name from localStorage if previously stored
+  useEffect(() => {
+    if (isOpen) {
+      const savedName = localStorage.getItem("photo_party_guest_name");
+      if (savedName && !guestName) {
+        setGuestName(savedName);
+      }
+    }
+  }, [isOpen, guestName]);
+
   const [isCompressing, setIsCompressing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Clean up object URL on unmount or when preview changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
+    e.target.value = "";
     if (!selectedFile) return;
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
 
     setErrorMessage(null);
     setSuccessMessage(null);
     setFile(selectedFile);
     setOriginalSize(selectedFile.size);
 
-    // Create local object URL for preview
+    // Create local object URL for preview and open modal
     const preview = URL.createObjectURL(selectedFile);
     setPreviewUrl(preview);
+    setIsOpen(true);
 
     try {
       setIsCompressing(true);
@@ -65,13 +91,17 @@ export function GuestUploadModal({
   };
 
   const resetForm = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setFile(null);
     setPreviewUrl(null);
     setCompressedBlob(null);
     setErrorMessage(null);
     setSuccessMessage(null);
     setUploadProgress(0);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,8 +116,20 @@ export function GuestUploadModal({
       setUploadProgress(20);
       setErrorMessage(null);
 
+      // Ensure stable guest session ID
+      let sId = localStorage.getItem("photo_party_guest_id");
+      if (!sId) {
+        sId = crypto.randomUUID();
+        localStorage.setItem("photo_party_guest_id", sId);
+      }
+
+      if (guestName.trim()) {
+        localStorage.setItem("photo_party_guest_name", guestName.trim());
+      }
+
       const formData = new FormData();
       formData.append("file", compressedBlob, file?.name || "photo.webp");
+      formData.append("guestSessionId", sId);
       if (tableId) formData.append("tableId", tableId);
       if (guestName.trim()) formData.append("guestName", guestName.trim());
       if (message.trim()) formData.append("message", message.trim());
@@ -96,6 +138,9 @@ export function GuestUploadModal({
 
       const response = await fetch(`/api/events/${slug}/upload`, {
         method: "POST",
+        headers: {
+          "x-guest-session-id": sId,
+        },
         body: formData,
       });
 
@@ -104,6 +149,21 @@ export function GuestUploadModal({
 
       if (!response.ok) {
         throw new Error(data.error || "Erro ao enviar a foto");
+      }
+
+      // Record uploaded photo ID for instant local ownership tracking
+      if (data.photo?.id) {
+        try {
+          const stored = JSON.parse(localStorage.getItem("photo_party_my_photos") || "[]");
+          if (Array.isArray(stored)) {
+            localStorage.setItem(
+              "photo_party_my_photos",
+              JSON.stringify([...stored, data.photo.id])
+            );
+          }
+        } catch (e) {
+          // ignore
+        }
       }
 
       setUploadProgress(100);
@@ -145,22 +205,53 @@ export function GuestUploadModal({
 
   return (
     <>
-      {/* Elegant Floating / Main Action Button */}
-      <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+      {/* Hidden Camera Input (forces camera viewfinder on mobile) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileChange}
+        className="hidden"
+        aria-label="Tirar foto com a câmera"
+      />
+
+      {/* Hidden Gallery Input (opens gallery / photo library) */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+        aria-label="Escolher foto da galeria"
+      />
+
+      {/* Elegant Floating / Main Action Buttons */}
+      <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center items-center gap-2.5 px-4 pointer-events-none">
+        {/* Primary Action: Tirar Foto (Direct Camera) */}
         <button
-          onClick={() => {
-            resetForm();
-            setIsOpen(true);
-          }}
-          className="pointer-events-auto flex items-center gap-3 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-[#fffaf5] px-7 py-3.5 rounded-full shadow-[0_10px_25px_rgba(203,125,135,0.45)] transition-all duration-200 border border-[#fffaf5]/40 font-serif text-lg tracking-wide"
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="pointer-events-auto flex items-center gap-2.5 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-[#fffaf5] px-5 sm:px-6 py-3.5 rounded-full shadow-[0_10px_25px_rgba(203,125,135,0.45)] transition-all duration-200 border border-[#fffaf5]/40 font-serif text-base sm:text-lg tracking-wide"
         >
           <Camera className="w-5 h-5 text-[#ebca90]" />
-          <span>Compartilhar Foto</span>
+          <span>Tirar Foto</span>
           {tableName && (
-            <span className="text-xs bg-[#5a6248] text-[#fbead6] px-2 py-0.5 rounded-full font-sans tracking-normal ml-1">
+            <span className="text-xs bg-[#5a6248] text-[#fbead6] px-2 py-0.5 rounded-full font-sans tracking-normal ml-0.5">
               {tableName}
             </span>
           )}
+        </button>
+
+        {/* Secondary Action: Galeria (Choose from files / gallery) */}
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="pointer-events-auto flex items-center gap-2 bg-[#5a6248] hover:bg-[#49503b] active:scale-95 text-[#fbead6] px-4 sm:px-5 py-3.5 rounded-full shadow-[0_10px_25px_rgba(90,98,72,0.35)] transition-all duration-200 border border-[#fffaf5]/30 font-serif text-base tracking-wide"
+          title="Escolher foto já tirada da galeria"
+        >
+          <ImageIcon className="w-5 h-5 text-[#ebca90]" />
+          <span>Galeria</span>
         </button>
       </div>
 
@@ -169,7 +260,10 @@ export function GuestUploadModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#49503b]/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl p-6 relative text-[#49503b]">
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                resetForm();
+                setIsOpen(false);
+              }}
               className="absolute top-4 right-4 p-2 text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6] rounded-full transition-colors"
               aria-label="Fechar"
             >
@@ -189,50 +283,83 @@ export function GuestUploadModal({
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Image Picker / Preview Area */}
               {!previewUrl ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-[#cb7d87]/40 hover:border-[#cb7d87] bg-[#fbead6]/30 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors group"
-                >
-                  <div className="w-16 h-16 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform">
-                    <Camera className="w-8 h-8" />
-                  </div>
-                  <p className="font-serif text-lg text-[#5a6248] mt-3">Toque para tirar ou escolher foto</p>
-                  <p className="text-xs text-[#7c8764] mt-1">JPEG, PNG ou WebP (otimizado no seu celular)</p>
-                </div>
-              ) : (
-                <div className="relative rounded-2xl overflow-hidden border border-[#cb7d87]/20 bg-black/5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={previewUrl} alt="Pré-visualização" className="w-full max-h-64 object-contain bg-[#fbead6]/20" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 1: Live Camera */}
                   <button
                     type="button"
-                    onClick={resetForm}
-                    className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="border-2 border-dashed border-[#cb7d87]/50 hover:border-[#cb7d87] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
                   >
-                    <X className="w-4 h-4" />
+                    <div className="w-14 h-14 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform mb-2">
+                      <Camera className="w-7 h-7" />
+                    </div>
+                    <p className="font-serif text-base font-semibold text-[#5a6248]">Tirar Foto</p>
+                    <p className="text-[11px] text-[#7c8764] mt-1">Abre a câmera do celular</p>
                   </button>
 
-                  {/* Compression stats badge */}
-                  <div className="bg-[#5a6248] text-[#fbead6] text-[11px] px-3 py-1.5 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#ebca90]" />
-                      {isCompressing ? "Otimizando foto..." : "Otimizada para envio rápido"}
-                    </span>
-                    {!isCompressing && compressedSize > 0 && (
-                      <span className="opacity-90">
-                        {formatBytes(originalSize)} → <strong>{formatBytes(compressedSize)}</strong>
+                  {/* Option 2: Gallery Picker */}
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="border-2 border-dashed border-[#5a6248]/40 hover:border-[#5a6248] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-[#5a6248]/15 flex items-center justify-center text-[#5a6248] group-hover:scale-110 transition-transform mb-2">
+                      <ImageIcon className="w-7 h-7" />
+                    </div>
+                    <p className="font-serif text-base font-semibold text-[#5a6248]">Escolher da Galeria</p>
+                    <p className="text-[11px] text-[#7c8764] mt-1">Fotos salvas no aparelho</p>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative rounded-2xl overflow-hidden border border-[#cb7d87]/20 bg-black/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewUrl} alt="Pré-visualização" className="w-full max-h-64 object-contain bg-[#fbead6]/20" />
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                      title="Remover foto"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+
+                    {/* Compression stats badge */}
+                    <div className="bg-[#5a6248] text-[#fbead6] text-[11px] px-3 py-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#ebca90]" />
+                        {isCompressing ? "Otimizando foto..." : "Otimizada para envio rápido"}
                       </span>
-                    )}
+                      {!isCompressing && compressedSize > 0 && (
+                        <span className="opacity-90">
+                          {formatBytes(originalSize)} → <strong>{formatBytes(compressedSize)}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Switch / Retake buttons */}
+                  <div className="flex items-center justify-center gap-4 text-xs text-[#7c8764] pt-1">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Tirar outra foto</span>
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Escolher da galeria</span>
+                    </button>
                   </div>
                 </div>
               )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
 
               {/* Guest Name input */}
               <div>

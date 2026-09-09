@@ -62,12 +62,17 @@ async function setup() {
       event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
       table_id TEXT REFERENCES tables(id) ON DELETE SET NULL,
       guest_name TEXT,
+      guest_session_id TEXT,
       message TEXT,
       storage_path TEXT NOT NULL,
       url TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'approved',
       created_at TIMESTAMP NOT NULL
     );
+  `;
+
+  await sql`
+    ALTER TABLE photos ADD COLUMN IF NOT EXISTS guest_session_id TEXT;
   `;
 
   await sql`

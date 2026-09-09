@@ -63,6 +63,11 @@ export function HostAdminClient({
   const [isGeneratingTables, setIsGeneratingTables] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+
+  // Photo delete confirmation state
+  const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   // Authorization check
   const handleAuthorize = (e: React.FormEvent) => {
@@ -95,18 +100,25 @@ export function HostAdminClient({
     }
   };
 
-  // Delete photo
-  const handleDeletePhoto = async (photoId: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta foto permanentemente?")) return;
+  // Confirm and delete photo
+  const confirmDeletePhoto = async () => {
+    if (!photoToDelete) return;
     try {
-      const res = await fetch(`/api/events/${event.slug}/photos/${photoId}?key=${event.hostKey}`, {
-        method: "DELETE",
-      });
+      setIsDeletingPhoto(true);
+      const res = await fetch(
+        `/api/events/${event.slug}/photos/${photoToDelete.id}?key=${event.hostKey}`,
+        {
+          method: "DELETE",
+        }
+      );
       if (res.ok) {
-        setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+        setPhotos((prev) => prev.filter((p) => p.id !== photoToDelete.id));
+        setPhotoToDelete(null);
       }
     } catch (err) {
       console.error("Error deleting photo:", err);
+    } finally {
+      setIsDeletingPhoto(false);
     }
   };
 
@@ -471,7 +483,7 @@ export function HostAdminClient({
                       )}
 
                       <button
-                        onClick={() => handleDeletePhoto(photo.id)}
+                        onClick={() => setPhotoToDelete(photo)}
                         className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[11px] transition-colors"
                         title="Excluir Foto"
                       >
@@ -600,11 +612,67 @@ export function HostAdminClient({
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(event.hostKey);
-                  alert("Host Key copiada!");
+                  setCopiedKey(true);
+                  setTimeout(() => setCopiedKey(false), 2000);
                 }}
-                className="px-4 py-2.5 bg-[#cb7d87] text-white rounded-xl text-xs shrink-0 cursor-pointer"
+                className="px-4 py-2.5 bg-[#cb7d87] text-white rounded-xl text-xs shrink-0 cursor-pointer transition-colors"
               >
-                Copiar
+                {copiedKey ? "Copiado!" : "Copiar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Host Photo Delete Confirmation Modal */}
+      {photoToDelete && (
+        <div
+          onClick={() => {
+            if (!isDeletingPhoto) setPhotoToDelete(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center"
+          >
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-serif text-xl text-[#5a6248] font-medium mb-1">
+              Excluir Foto?
+            </h3>
+
+            <p className="text-xs text-[#7c8764] leading-relaxed mb-3">
+              Tem certeza que deseja excluir esta foto permanentemente do evento?
+            </p>
+
+            <div className="my-3 mx-auto w-24 h-24 rounded-2xl overflow-hidden border border-[#cb7d87]/20 shadow-inner bg-[#fbead6]/40 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoToDelete.url}
+                alt="Prévia"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isDeletingPhoto}
+                onClick={() => setPhotoToDelete(null)}
+                className="flex-1 py-2 text-xs font-medium text-[#7c8764] hover:bg-[#fbead6]/50 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingPhoto}
+                onClick={confirmDeletePhoto}
+                className="flex-1 py-2 text-xs font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+              >
+                {isDeletingPhoto ? <span>Excluindo...</span> : <span>Sim, Excluir</span>}
               </button>
             </div>
           </div>

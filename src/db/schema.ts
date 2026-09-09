@@ -36,6 +36,7 @@ export const photos = pgTable("photos", {
     onDelete: "set null",
   }),
   guestName: text("guest_name"),
+  guestSessionId: text("guest_session_id"),
   message: text("message"),
   storagePath: text("storage_path").notNull(),
   url: text("url").notNull(),

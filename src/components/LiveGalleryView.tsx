@@ -13,6 +13,7 @@ import {
   Clock,
   Flame,
   User,
+  AlertCircle,
 } from "lucide-react";
 
 export interface PhotoItem {
@@ -27,6 +28,7 @@ export interface PhotoItem {
   likeCount?: number;
   commentCount?: number;
   hasLiked?: boolean;
+  canDelete?: boolean;
 }
 
 export interface CommentItem {
@@ -67,9 +69,15 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
   // Guest identity
   const [guestSessionId, setGuestSessionId] = useState<string>("");
   const [guestName, setGuestName] = useState<string>("");
+  const [myUploadedPhotoIds, setMyUploadedPhotoIds] = useState<Set<string>>(new Set());
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [pendingCommentText, setPendingCommentText] = useState<string>("");
   const [nameInput, setNameInput] = useState<string>("");
+
+  // Photo deletion state
+  const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState<boolean>(false);
+  const [deletePhotoError, setDeletePhotoError] = useState<string | null>(null);
 
   // Double tap heart animation
   const [animatingHeartPhotoId, setAnimatingHeartPhotoId] = useState<string | null>(null);
@@ -82,7 +90,7 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Initialize guest session ID and Name on mount
+  // Initialize guest session ID, Name, and owned photos on mount
   useEffect(() => {
     const timer = setTimeout(() => {
       let sId = localStorage.getItem("photo_party_guest_id");
@@ -95,6 +103,15 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
       const savedName = localStorage.getItem("photo_party_guest_name") || "";
       setGuestName(savedName);
       setNameInput(savedName);
+
+      try {
+        const stored = JSON.parse(localStorage.getItem("photo_party_my_photos") || "[]");
+        if (Array.isArray(stored)) {
+          setMyUploadedPhotoIds(new Set(stored));
+        }
+      } catch (e) {
+        // ignore
+      }
     }, 0);
 
     return () => clearTimeout(timer);
@@ -119,11 +136,12 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
           setActivePhoto((prev) => {
             if (!prev) return null;
             const updated = data.photos.find((p: PhotoItem) => p.id === prev.id);
-            if (!updated) return prev;
+            if (!updated) return null;
             if (
               prev.likeCount === updated.likeCount &&
               prev.commentCount === updated.commentCount &&
-              prev.hasLiked === updated.hasLiked
+              prev.hasLiked === updated.hasLiked &&
+              prev.canDelete === updated.canDelete
             ) {
               return prev;
             }
@@ -403,6 +421,78 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     }
   };
 
+  // Check if current guest is permitted to delete this photo
+  const canDeletePhoto = useCallback(
+    (photo: PhotoItem): boolean => {
+      return Boolean(photo.canDelete || myUploadedPhotoIds.has(photo.id));
+    },
+    [myUploadedPhotoIds]
+  );
+
+  // Confirm and execute photo deletion
+  const handleConfirmDeletePhoto = async () => {
+    if (!photoToDelete) return;
+
+    try {
+      setIsDeletingPhoto(true);
+      setDeletePhotoError(null);
+
+      const sId = guestSessionId || localStorage.getItem("photo_party_guest_id") || "";
+      const headers: Record<string, string> = {};
+      if (sId) {
+        headers["x-guest-session-id"] = sId;
+      }
+
+      const res = await fetch(
+        `/api/events/${slug}/photos/${photoToDelete.id}?guestSessionId=${encodeURIComponent(sId)}`,
+        {
+          method: "DELETE",
+          headers,
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Não foi possível apagar a foto.");
+      }
+
+      // Optimistically remove from state
+      setPhotos((prev) => prev.filter((p) => p.id !== photoToDelete.id));
+
+      // Remove from myUploadedPhotoIds
+      setMyUploadedPhotoIds((prev) => {
+        const next = new Set(prev);
+        next.delete(photoToDelete.id);
+        return next;
+      });
+
+      // Update localStorage
+      try {
+        const stored = JSON.parse(localStorage.getItem("photo_party_my_photos") || "[]");
+        if (Array.isArray(stored)) {
+          localStorage.setItem(
+            "photo_party_my_photos",
+            JSON.stringify(stored.filter((id: string) => id !== photoToDelete.id))
+          );
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // If active photo in lightbox is the one deleted, close lightbox
+      if (activePhoto?.id === photoToDelete.id) {
+        setActivePhoto(null);
+      }
+
+      setPhotoToDelete(null);
+    } catch (err: unknown) {
+      setDeletePhotoError(err instanceof Error ? err.message : "Erro ao apagar a foto.");
+    } finally {
+      setIsDeletingPhoto(false);
+    }
+  };
+
   // Save guest name from modal
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
@@ -596,14 +686,29 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                   </span>
                 )}
 
-                {/* Quick download button */}
-                <button
-                  onClick={(e) => handleDownload(photo, e)}
-                  aria-label="Baixar foto"
-                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-[#cb7d87] transition-opacity z-10"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                </button>
+                {/* Top action buttons */}
+                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  {canDeletePhoto(photo) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPhotoToDelete(photo);
+                      }}
+                      aria-label="Apagar minha foto"
+                      title="Apagar minha foto"
+                      className="p-1.5 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white shadow-xs backdrop-blur-xs transition-colors active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => handleDownload(photo, e)}
+                    aria-label="Baixar foto"
+                    className="p-1.5 rounded-full bg-black/50 text-white hover:bg-[#cb7d87] shadow-xs backdrop-blur-xs transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Card Footer: Dedication and Instagram Actions Bar */}
@@ -720,6 +825,16 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  {canDeletePhoto(activePhoto) && (
+                    <button
+                      onClick={() => setPhotoToDelete(activePhoto)}
+                      className="p-1.5 text-rose-600 hover:text-rose-700 rounded-full hover:bg-rose-100/60 transition-colors flex items-center gap-1 text-xs font-medium"
+                      title="Apagar minha foto"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">Apagar</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDownload(activePhoto)}
                     className="p-1.5 text-[#5a6248] hover:text-[#cb7d87] rounded-full hover:bg-[#fbead6]/50 transition-colors"
@@ -901,6 +1016,82 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Delete Confirmation Modal (Framework-native, no window.confirm) */}
+      {photoToDelete && (
+        <div
+          onClick={() => {
+            if (!isDeletingPhoto) {
+              setPhotoToDelete(null);
+              setDeletePhotoError(null);
+            }
+          }}
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center"
+          >
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-serif text-xl text-[#5a6248] font-medium mb-1">
+              Apagar Foto?
+            </h3>
+
+            <p className="text-xs text-[#7c8764] leading-relaxed mb-3">
+              Tem certeza que deseja apagar esta foto? Ela será excluída permanentemente da galeria e do telão do evento.
+            </p>
+
+            {/* Thumbnail preview */}
+            <div className="my-3 mx-auto w-24 h-24 rounded-2xl overflow-hidden border border-[#cb7d87]/20 shadow-inner bg-[#fbead6]/40 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoToDelete.url}
+                alt="Prévia"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {deletePhotoError && (
+              <div className="mb-3 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{deletePhotoError}</span>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isDeletingPhoto}
+                onClick={() => {
+                  setPhotoToDelete(null);
+                  setDeletePhotoError(null);
+                }}
+                className="flex-1 py-2 text-xs font-medium text-[#7c8764] hover:bg-[#fbead6]/50 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingPhoto}
+                onClick={handleConfirmDeletePhoto}
+                className="flex-1 py-2 text-xs font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+              >
+                {isDeletingPhoto ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Apagando...</span>
+                  </>
+                ) : (
+                  <span>Sim, Apagar</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
