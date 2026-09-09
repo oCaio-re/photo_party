@@ -6,6 +6,7 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { MonogramLogo } from "@/components/MonogramLogo";
 import { GuestUploadModal } from "@/components/GuestUploadModal";
 import { LiveGalleryView, PhotoItem } from "@/components/LiveGalleryView";
+import { HowItWorksModal } from "@/components/HowItWorksModal";
 import { Tv, Sparkles, Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
         </Link>
 
         <div className="flex items-center gap-2">
+          <HowItWorksModal trigger="navbar" />
           <Link
             href={`/e/${event.slug}/slideshow`}
             target="_blank"

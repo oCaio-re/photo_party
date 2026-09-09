@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
 import { compressImage } from "@/lib/client-compress";
+import { openHowItWorksGuide } from "@/components/HowItWorksModal";
 
 interface GuestUploadModalProps {
   slug: string;
@@ -253,12 +254,34 @@ export function GuestUploadModal({
           <ImageIcon className="w-5 h-5 text-[#ebca90]" />
           <span>Galeria</span>
         </button>
+
+        {/* Help / How It Works Button */}
+        <button
+          type="button"
+          onClick={openHowItWorksGuide}
+          className="pointer-events-auto flex items-center justify-center w-12 h-12 bg-[#fffaf5] hover:bg-[#fbead6] active:scale-95 text-[#5a6248] hover:text-[#cb7d87] rounded-full shadow-[0_6px_20px_rgba(90,98,72,0.22)] transition-all duration-200 border border-[#cb7d87]/35"
+          title="Como funciona a plataforma?"
+          aria-label="Como funciona?"
+        >
+          <HelpCircle className="w-6 h-6 text-[#cb7d87]" />
+        </button>
       </div>
 
       {/* Upload Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#49503b]/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl p-6 relative text-[#49503b]">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-[#49503b]/60 backdrop-blur-sm overscroll-contain animate-fade-in"
+          style={{ WebkitOverflowScrolling: "touch" }}
+          onClick={() => {
+            resetForm();
+            setIsOpen(false);
+          }}
+        >
+          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl max-w-lg w-full shadow-2xl p-6 relative text-[#49503b] my-8 text-left"
+            >
             <button
               onClick={() => {
                 resetForm();
@@ -437,6 +460,7 @@ export function GuestUploadModal({
             </form>
           </div>
         </div>
+      </div>
       )}
     </>
   );
