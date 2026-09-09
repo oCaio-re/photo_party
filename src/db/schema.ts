@@ -27,6 +27,18 @@ export const tables = pgTable("tables", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 });
 
+export const photoQuests = pgTable("photo_quests", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  icon: text("icon").default("🎯"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+});
+
 export const photos = pgTable("photos", {
   id: text("id").primaryKey(),
   eventId: text("event_id")
@@ -35,9 +47,14 @@ export const photos = pgTable("photos", {
   tableId: text("table_id").references(() => tables.id, {
     onDelete: "set null",
   }),
+  questId: text("quest_id").references(() => photoQuests.id, {
+    onDelete: "set null",
+  }),
+  questTitle: text("quest_title"),
   guestName: text("guest_name"),
   guestSessionId: text("guest_session_id"),
   message: text("message"),
+  mediaType: text("media_type").notNull().default("photo"),
   storagePath: text("storage_path").notNull(),
   url: text("url").notNull(),
   status: text("status", {
@@ -74,6 +91,18 @@ export const photoComments = pgTable("photo_comments", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 });
 
+export const chatMessages = pgTable("chat_messages", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  guestSessionId: text("guest_session_id").notNull(),
+  guestName: text("guest_name").notNull(),
+  tableIdentifier: text("table_identifier"),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+});
+
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
 export type Table = typeof tables.$inferSelect;
@@ -84,4 +113,8 @@ export type PhotoLike = typeof photoLikes.$inferSelect;
 export type NewPhotoLike = typeof photoLikes.$inferInsert;
 export type PhotoComment = typeof photoComments.$inferSelect;
 export type NewPhotoComment = typeof photoComments.$inferInsert;
+export type PhotoQuest = typeof photoQuests.$inferSelect;
+export type NewPhotoQuest = typeof photoQuests.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
 

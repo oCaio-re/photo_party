@@ -17,6 +17,7 @@ interface SlideshowPhoto {
   guestName: string | null;
   message: string | null;
   tableIdentifier: string | null;
+  mediaType?: "photo" | "video";
   likeCount?: number;
   recentComments?: SlideshowComment[];
 }
@@ -36,6 +37,14 @@ const BALLOON_SLOT_CLASSES = [
   "bottom-36 sm:bottom-44 right-4 sm:right-12 lg:right-24 animate-float-right",
 ];
 
+interface SlideshowChatMessage {
+  id: string;
+  guestName: string;
+  tableIdentifier: string | null;
+  message: string;
+  createdAt: string | number | Date;
+}
+
 export function SlideshowClient({
   slug,
   eventTitle,
@@ -43,6 +52,8 @@ export function SlideshowClient({
   qrCodeDataUrl,
 }: SlideshowClientProps) {
   const [photos, setPhotos] = useState<SlideshowPhoto[]>(initialPhotos);
+  const [chatMessages, setChatMessages] = useState<SlideshowChatMessage[]>([]);
+  const [activeChatIndex, setActiveChatIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -62,9 +73,38 @@ export function SlideshowClient({
       }
     };
 
-    const interval = setInterval(fetchPhotos, 5000);
-    return () => clearInterval(interval);
+    const fetchChat = async () => {
+      try {
+        const res = await fetch(`/api/events/${slug}/chat`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.messages)) {
+            setChatMessages(data.messages);
+          }
+        }
+      } catch (err) {
+        console.warn("Slideshow chat poll error:", err);
+      }
+    };
+
+    fetchPhotos();
+    fetchChat();
+    const intervalPhotos = setInterval(fetchPhotos, 5000);
+    const intervalChat = setInterval(fetchChat, 6000);
+    return () => {
+      clearInterval(intervalPhotos);
+      clearInterval(intervalChat);
+    };
   }, [slug]);
+
+  // Cycle chat messages ticker every 5 seconds
+  useEffect(() => {
+    if (chatMessages.length <= 1) return;
+    const ticker = setInterval(() => {
+      setActiveChatIndex((prev) => (prev + 1) % chatMessages.length);
+    }, 5000);
+    return () => clearInterval(ticker);
+  }, [chatMessages.length]);
 
   // Dynamic slide duration: 8s if photo has comments, 6s if simple photo
   useEffect(() => {
@@ -131,15 +171,27 @@ export function SlideshowClient({
           </div>
         ) : (
           <div className="relative max-h-[82vh] max-w-[90vw] flex flex-col items-center justify-center transition-all duration-700">
-            {/* Main Photo with soft shadow, frame and like badge */}
+            {/* Main Photo or Video with soft shadow, frame and like badge */}
             <div className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                key={currentPhoto.id}
-                src={currentPhoto.url}
-                alt={currentPhoto.guestName || "Foto do Casamento"}
-                className="max-h-[72vh] w-auto object-contain rounded-2xl shadow-2xl border border-white/20 transition-opacity duration-500"
-              />
+              {currentPhoto.mediaType === "video" ? (
+                <video
+                  key={currentPhoto.id}
+                  src={currentPhoto.url}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="max-h-[72vh] w-auto object-contain rounded-2xl shadow-2xl border border-white/20 transition-opacity duration-500"
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  key={currentPhoto.id}
+                  src={currentPhoto.url}
+                  alt={currentPhoto.guestName || "Foto do Casamento"}
+                  className="max-h-[72vh] w-auto object-contain rounded-2xl shadow-2xl border border-white/20 transition-opacity duration-500"
+                />
+              )}
 
               {/* Like Badge Overlay */}
               {Boolean(currentPhoto.likeCount && currentPhoto.likeCount > 0) && (
@@ -199,6 +251,33 @@ export function SlideshowClient({
           );
         })}
       </div>
+
+      {/* Bottom Left Live Chat Ticker Card */}
+      {chatMessages.length > 0 && (
+        <div className="absolute bottom-6 left-6 z-20 max-w-sm sm:max-w-md bg-black/75 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-[#cb7d87]/40 shadow-2xl text-white animate-fade-in flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#cb7d87] flex items-center justify-center text-white shrink-0 shadow-xs">
+            <MessageSquare className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-[#ebca90]">
+                Mural ao Vivo
+              </span>
+              {chatMessages[activeChatIndex % chatMessages.length]?.tableIdentifier && (
+                <span className="bg-[#5a6248]/90 text-[#fbead6] text-[9px] px-2 py-0.2 rounded-full font-medium">
+                  {chatMessages[activeChatIndex % chatMessages.length].tableIdentifier}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-white/90 font-medium truncate">
+              {chatMessages[activeChatIndex % chatMessages.length]?.guestName}:
+            </p>
+            <p className="font-serif text-sm text-[#fbead6] italic leading-snug line-clamp-2">
+              &ldquo;{chatMessages[activeChatIndex % chatMessages.length]?.message}&rdquo;
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Corner QR Code Call to Action */}
       <div className="absolute bottom-6 right-6 z-20 flex items-center gap-4 bg-white/95 text-[#49503b] p-3.5 rounded-2xl shadow-2xl border border-[#cb7d87]/40 backdrop-blur-md">

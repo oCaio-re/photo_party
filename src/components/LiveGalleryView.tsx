@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
   Download,
   X,
@@ -14,17 +15,25 @@ import {
   Flame,
   User,
   AlertCircle,
+  Camera,
+  Video,
+  BookOpen,
 } from "lucide-react";
+import { PhotoQuestsHub } from "@/components/PhotoQuestsHub";
+import { EventChatView } from "@/components/EventChatView";
 
 export interface PhotoItem {
   id: string;
   url: string;
   guestName: string | null;
   message: string | null;
+  mediaType?: "photo" | "video";
   status: string;
   createdAt: string | number;
   tableId: string | null;
   tableIdentifier: string | null;
+  questId?: string | null;
+  questTitle?: string | null;
   likeCount?: number;
   commentCount?: number;
   hasLiked?: boolean;
@@ -63,6 +72,8 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos);
   const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null);
   const [selectedTable, setSelectedTable] = useState<string>("all");
+  const [mainTab, setMainTab] = useState<"gallery" | "quests" | "chat">("gallery");
+  const [selectedQuestFilter, setSelectedQuestFilter] = useState<string>("all");
   const [sortMode, setSortMode] = useState<"recent" | "likes">("recent");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -540,8 +551,9 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
 
   // Filter & Sort
   const filteredPhotos = photos.filter((p) => {
-    if (selectedTable === "all") return true;
-    return p.tableIdentifier === selectedTable;
+    if (selectedTable !== "all" && p.tableIdentifier !== selectedTable) return false;
+    if (selectedQuestFilter !== "all" && p.questTitle !== selectedQuestFilter) return false;
+    return true;
   });
 
   const sortedPhotos = [...filteredPhotos].sort((a, b) => {
@@ -554,7 +566,83 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
 
   return (
     <div className="w-full">
-      {/* Top Bar: Sort Mode Toggle & Refresh */}
+      {/* Main Mode Tabs: Mural de Fotos vs Desafios vs Recados */}
+      <div className="flex items-center justify-center mb-6">
+        <div className="inline-flex p-1 bg-[#fffaf5] border border-[#cb7d87]/25 rounded-2xl shadow-xs">
+          <button
+            onClick={() => setMainTab("gallery")}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              mainTab === "gallery"
+                ? "bg-[#5a6248] text-[#fbead6] shadow-xs"
+                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
+            }`}
+          >
+            <Camera className="w-4 h-4" />
+            <span>Mural ({photos.length})</span>
+          </button>
+          <button
+            onClick={() => setMainTab("quests")}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              mainTab === "quests"
+                ? "bg-[#cb7d87] text-white shadow-xs"
+                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>🎯 Desafios</span>
+          </button>
+          <button
+            onClick={() => setMainTab("chat")}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              mainTab === "chat"
+                ? "bg-[#cb7d87] text-white shadow-xs"
+                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>💬 Recados</span>
+          </button>
+        </div>
+      </div>
+
+      {mainTab === "quests" ? (
+        <PhotoQuestsHub
+          slug={slug}
+          onFilterByQuest={(questTitle) => {
+            setSelectedQuestFilter(questTitle);
+            setMainTab("gallery");
+          }}
+        />
+      ) : mainTab === "chat" ? (
+        <EventChatView
+          slug={slug}
+          guestSessionId={guestSessionId}
+          guestName={guestName}
+          onChangeName={() => {
+            setNameInput(guestName);
+            setShowNameModal(true);
+          }}
+        />
+      ) : (
+        <>
+          {/* Active Quest Filter Banner */}
+          {selectedQuestFilter !== "all" && (
+            <div className="flex items-center justify-between bg-[#cb7d87]/15 border border-[#cb7d87]/30 px-4 py-2 rounded-2xl mb-4 text-xs">
+              <span className="text-[#5a6248] font-medium flex items-center gap-1.5">
+                <span>🎯 Filtrando por desafio:</span>
+                <strong className="text-[#cb7d87] font-semibold">{selectedQuestFilter}</strong>
+              </span>
+              <button
+                onClick={() => setSelectedQuestFilter("all")}
+                className="text-[#cb7d87] hover:underline font-medium text-[11px] flex items-center gap-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                Limpar filtro
+              </button>
+            </div>
+          )}
+
+          {/* Top Bar: Sort Mode Toggle & Refresh */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         {/* Sort Mode Buttons */}
         <div className="inline-flex p-1 bg-[#fffaf5] border border-[#cb7d87]/25 rounded-2xl shadow-xs self-start">
@@ -598,13 +686,22 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
             </span>
           </button>
 
+          <Link
+            href={`/e/${slug}/guestbook`}
+            className="flex items-center gap-1.5 text-xs text-[#5a6248] hover:text-[#cb7d87] bg-[#fffaf5] border border-[#cb7d87]/20 px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-2xs"
+            title="Abrir Livro Digital de Recordações"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-[#cb7d87]" />
+            <span className="hidden sm:inline">Livro de Recordações</span>
+          </Link>
+
           <button
             onClick={async () => {
               setIsRefreshing(true);
               await fetchLatestPhotos();
               setTimeout(() => setIsRefreshing(false), 400);
             }}
-            className="p-1.5 text-[#5a6248] hover:text-[#cb7d87] rounded-full transition-transform active:rotate-180"
+            className="p-1.5 text-[#5a6248] hover:text-[#cb7d87] rounded-full transition-transform active:rotate-180 cursor-pointer"
             title="Atualizar galeria"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -660,15 +757,33 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
               onTouchEnd={(e) => handlePhotoDoubleTap(photo, e)}
               className="break-inside-avoid group cursor-pointer bg-[#fffaf5] border border-[#cb7d87]/25 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative"
             >
-              {/* Photo Image Container */}
+              {/* Media Container (Photo or Video) */}
               <div className="relative overflow-hidden bg-[#fbead6]/40 select-none">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.url}
-                  alt={photo.guestName ? `Foto de ${photo.guestName}` : "Foto do evento"}
-                  loading="lazy"
-                  className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+                {photo.mediaType === "video" ? (
+                  <div className="relative w-full">
+                    <video
+                      src={photo.url}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                    />
+                    <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full backdrop-blur-xs flex items-center gap-1 group-hover:opacity-0 transition-opacity">
+                      <Video className="w-3 h-3 text-[#ebca90]" />
+                      <span>Vídeo</span>
+                    </span>
+                  </div>
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={photo.url}
+                    alt={photo.guestName ? `Foto de ${photo.guestName}` : "Foto do evento"}
+                    loading="lazy"
+                    className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                )}
 
                 {/* Double Tap Floating Heart Animation */}
                 {animatingHeartPhotoId === photo.id && (
@@ -683,6 +798,14 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 {photo.tableIdentifier && (
                   <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider font-semibold bg-[#5a6248]/85 text-[#fbead6] px-2 py-0.5 rounded-full backdrop-blur-xs shadow-xs">
                     {photo.tableIdentifier}
+                  </span>
+                )}
+
+                {/* Quest badge pill */}
+                {photo.questTitle && (
+                  <span className="absolute bottom-2 left-2 max-w-[85%] truncate text-[10px] font-medium bg-[#cb7d87]/90 text-white px-2 py-0.5 rounded-full backdrop-blur-xs shadow-xs flex items-center gap-1 z-10">
+                    <span>🎯</span>
+                    <span className="truncate">{photo.questTitle}</span>
                   </span>
                 )}
 
@@ -774,6 +897,8 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
           ))}
         </div>
       )}
+    </>
+  )}
 
       {/* Instagram-Style Lightbox Modal */}
       {activePhoto && (
@@ -785,17 +910,27 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
             onClick={(e) => e.stopPropagation()}
             className="relative max-w-4xl w-full bg-[#fffaf5] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[92vh]"
           >
-            {/* Left Side: Photo Display */}
+            {/* Left Side: Photo/Video Display */}
             <div
               onDoubleClick={(e) => handlePhotoDoubleTap(activePhoto, e)}
               className="flex-1 bg-black flex items-center justify-center relative min-h-[260px] sm:min-h-[380px] overflow-hidden select-none"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={activePhoto.url}
-                alt={activePhoto.guestName || "Foto"}
-                className="max-h-[50vh] md:max-h-[85vh] w-auto object-contain"
-              />
+              {activePhoto.mediaType === "video" ? (
+                <video
+                  src={activePhoto.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[50vh] md:max-h-[85vh] w-auto max-w-full object-contain"
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={activePhoto.url}
+                  alt={activePhoto.guestName || "Foto"}
+                  className="max-h-[50vh] md:max-h-[85vh] w-auto object-contain"
+                />
+              )}
 
               {/* Heart Pop on double tap inside modal */}
               {animatingHeartPhotoId === activePhoto.id && (
@@ -811,10 +946,16 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
             <div className="w-full md:w-[380px] lg:w-[420px] flex flex-col bg-[#fffaf5] border-t md:border-t-0 md:border-l border-[#cb7d87]/20 max-h-[45vh] md:max-h-[85vh]">
               {/* Modal Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#cb7d87]/15 bg-[#fffaf5]">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {activePhoto.tableIdentifier && (
                     <span className="text-[11px] font-semibold bg-[#5a6248] text-[#fbead6] px-2.5 py-0.5 rounded-full">
                       {activePhoto.tableIdentifier}
+                    </span>
+                  )}
+                  {activePhoto.questTitle && (
+                    <span className="text-[11px] font-medium bg-[#cb7d87] text-white px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <span>🎯</span>
+                      <span className="truncate max-w-[130px]">{activePhoto.questTitle}</span>
                     </span>
                   )}
                   {activePhoto.guestName && (

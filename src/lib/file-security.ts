@@ -8,6 +8,9 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
   "image/heic",
   "image/heif",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ]);
 
 export function validateImageBuffer(buffer: Buffer): { valid: boolean; extension: string; mime: string } {
@@ -52,6 +55,45 @@ export function validateImageBuffer(buffer: Buffer): { valid: boolean; extension
   }
 
   return { valid: false, extension: "", mime: "" };
+}
+
+export function validateMediaBuffer(buffer: Buffer): {
+  valid: boolean;
+  mediaType: "photo" | "video";
+  extension: string;
+  mime: string;
+} {
+  if (buffer.length < 12) {
+    return { valid: false, mediaType: "photo", extension: "", mime: "" };
+  }
+
+  // Check image first
+  const img = validateImageBuffer(buffer);
+  if (img.valid) {
+    return { valid: true, mediaType: "photo", extension: img.extension, mime: img.mime };
+  }
+
+  // MP4 / MOV (ISO Base Media File Format)
+  const ftyp = buffer.subarray(4, 8).toString("ascii");
+  if (ftyp === "ftyp") {
+    const brand = buffer.subarray(8, 12).toString("ascii");
+    if (brand.startsWith("qt")) {
+      return { valid: true, mediaType: "video", extension: "mov", mime: "video/quicktime" };
+    }
+    return { valid: true, mediaType: "video", extension: "mp4", mime: "video/mp4" };
+  }
+
+  // WebM: starts with 0x1A 0x45 0xDF 0xA3
+  if (
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  ) {
+    return { valid: true, mediaType: "video", extension: "webm", mime: "video/webm" };
+  }
+
+  return { valid: false, mediaType: "photo", extension: "", mime: "" };
 }
 
 export function isAllowedMimeType(mime: string): boolean {

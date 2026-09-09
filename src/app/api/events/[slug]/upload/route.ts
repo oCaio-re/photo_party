@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { events, photos, tables } from "@/db/schema";
+import { events, photos, tables, photoQuests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getStorageProvider } from "@/lib/storage";
-import { validateImageBuffer } from "@/lib/file-security";
+import { validateMediaBuffer } from "@/lib/file-security";
 import crypto from "crypto";
 
 export async function POST(
@@ -60,11 +60,11 @@ export async function POST(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Validate magic bytes & extension
-    const { valid, extension, mime } = validateImageBuffer(buffer);
+    // Validate magic bytes & extension (image or video clip)
+    const { valid, mediaType, extension, mime } = validateMediaBuffer(buffer);
     if (!valid) {
       return NextResponse.json(
-        { error: "Arquivo inválido. Por favor envie uma imagem válida (JPEG, PNG ou WebP)." },
+        { error: "Arquivo inválido. Por favor envie uma foto (JPEG, PNG, WebP) ou clipe de vídeo (MP4, WebM, MOV)." },
         { status: 400 }
       );
     }
@@ -79,6 +79,22 @@ export async function POST(
         .limit(1);
       if (tableRecord && tableRecord.eventId === event.id) {
         validTableId = tableRecord.id;
+      }
+    }
+
+    // Optional photo quest check
+    const questId = formData.get("questId") as string | null;
+    let validQuestId: string | null = null;
+    let validQuestTitle: string | null = null;
+    if (questId) {
+      const [questRecord] = await db
+        .select()
+        .from(photoQuests)
+        .where(eq(photoQuests.id, questId))
+        .limit(1);
+      if (questRecord && questRecord.eventId === event.id) {
+        validQuestId = questRecord.id;
+        validQuestTitle = questRecord.title;
       }
     }
 
@@ -99,9 +115,12 @@ export async function POST(
       id: photoId,
       eventId: event.id,
       tableId: validTableId,
+      questId: validQuestId,
+      questTitle: validQuestTitle,
       guestName: guestName ? guestName.trim().slice(0, 100) : null,
       guestSessionId,
       message: message ? message.trim().slice(0, 500) : null,
+      mediaType,
       storagePath,
       url,
       status: initialStatus,
@@ -116,13 +135,16 @@ export async function POST(
         status: initialStatus,
         guestName,
         message,
+        mediaType,
+        questId: validQuestId,
+        questTitle: validQuestTitle,
         canDelete: true,
-        createdAt: now,
+        createdAt: now.toISOString(),
       },
       message:
         initialStatus === "pending"
-          ? "Foto enviada com sucesso! Aguardando aprovação do anfitrião."
-          : "Foto publicada com sucesso na Live Gallery!",
+          ? "Mídia enviada com sucesso! Aguardando aprovação do anfitrião."
+          : "Mídia publicada com sucesso na Live Gallery!",
     });
   } catch (error) {
     console.error("Upload error:", error);

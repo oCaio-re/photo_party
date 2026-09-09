@@ -24,6 +24,10 @@ _Avoid_: User, client, visitor
 An image uploaded by a Guest during an Event, optionally accompanied by an author name and dedication message.
 _Avoid_: Post, upload, snap, submission
 
+**Video Clip**:
+A short video recording (up to 15 seconds) uploaded by a Guest during an Event, featuring muted autoplay in the Live Gallery and full audio in the expanded view.
+_Avoid_: Video, story, reel, movie, recording
+
 **Live Gallery**:
 A shared real-time view of all photos uploaded by Guests during an Event.
 _Avoid_: Feed, photostream, album
@@ -59,3 +63,19 @@ _Avoid_: Reply, note, review, chat message
 **Photo Deletion**:
 The ability for a Guest to permanently remove a Photo they previously uploaded to an Event, or for a Host to remove any Photo during moderation.
 _Avoid_: Unpublish, trash bin, purge
+
+**Vintage Film Preset**:
+An optional warm, grain-enhanced analog film aesthetic applied to a Photo by a Guest before publishing.
+_Avoid_: Filter, effect, LUT, Instagram filter, skin
+
+**Photo Quest**:
+A creative photo prompt or mission configured for an Event (e.g., "A toast at your table", "The happiest smile"), which Guests can fulfill by tagging their Photo.
+_Avoid_: Challenge, game, mission, task, scavenger hunt
+
+**Digital Guestbook**:
+A curated editorial layout and printable keepsake of an Event pairing Photos with their guest dedications, author names, and table identifiers.
+_Avoid_: Dotbook, album, photobook, memory book, flipbook, scrap book
+
+**Event Chat**:
+A shared real-time public message stream where Guests at an Event can post text messages, greetings, and live reactions independently of individual Photos.
+_Avoid_: Chatroom, group chat, forum, wall, shoutbox, general chat

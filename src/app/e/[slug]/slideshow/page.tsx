@@ -28,6 +28,7 @@ export default async function SlideshowPage({ params }: SlideshowPageProps) {
       guestName: photos.guestName,
       message: photos.message,
       createdAt: photos.createdAt,
+      mediaType: photos.mediaType,
       tableIdentifier: tables.identifier,
       likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
     })
@@ -74,6 +75,7 @@ export default async function SlideshowPage({ params }: SlideshowPageProps) {
     url: p.url,
     guestName: p.guestName,
     message: p.message,
+    mediaType: (p.mediaType as "photo" | "video") || "photo",
     tableIdentifier: p.tableIdentifier,
     likeCount: p.likeCount || 0,
     recentComments: commentsByPhoto.get(p.id) || [],

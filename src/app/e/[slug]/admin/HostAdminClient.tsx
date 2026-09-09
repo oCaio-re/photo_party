@@ -21,10 +21,14 @@ import {
   Tv,
   Heart,
   MessageSquare,
+  Sparkles,
+  BookOpen,
 } from "lucide-react";
 import { MonogramLogo } from "@/components/MonogramLogo";
 import { TableCardsPrinter, TableItem } from "@/components/TableCardsPrinter";
 import { PhotoItem } from "@/components/LiveGalleryView";
+import { HostQuestsManager } from "@/components/HostQuestsManager";
+import { HostChatManager } from "@/components/HostChatManager";
 
 interface HostAdminClientProps {
   event: {
@@ -56,7 +60,7 @@ export function HostAdminClient({
   const [isAuthorized, setIsAuthorized] = useState(initialAuthorized);
   const [authError, setAuthError] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"photos" | "tables" | "bundle" | "settings">("photos");
+  const [activeTab, setActiveTab] = useState<"photos" | "tables" | "quests" | "chat" | "bundle" | "settings">("photos");
   const [photoFilter, setPhotoFilter] = useState<"all" | "pending" | "approved" | "hidden">("all");
 
   const [newTableCount, setNewTableCount] = useState<number>(5);
@@ -258,7 +262,7 @@ export function HostAdminClient({
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           <Link
             href={`/e/${event.slug}`}
             target="_blank"
@@ -266,6 +270,14 @@ export function HostAdminClient({
           >
             <span>Ver Galeria</span>
             <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
+          <Link
+            href={`/e/${event.slug}/guestbook`}
+            target="_blank"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs text-[#5a6248] hover:text-[#cb7d87] bg-[#fffaf5] px-4 py-2 rounded-full border border-[#cb7d87]/30 shadow-xs"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-[#cb7d87]" />
+            <span>Livro de Recordações</span>
           </Link>
           <button
             onClick={copyAdminLink}
@@ -326,6 +338,30 @@ export function HostAdminClient({
         >
           <QrCode className="w-4 h-4" />
           <span>Mesas & Cartões QR</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("quests")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-serif text-base transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === "quests"
+              ? "bg-[#cb7d87] text-white shadow-xs"
+              : "bg-[#fffaf5] text-[#5a6248] hover:bg-[#fbead6]"
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Desafios de Fotos</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("chat")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-serif text-base transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === "chat"
+              ? "bg-[#cb7d87] text-white shadow-xs"
+              : "bg-[#fffaf5] text-[#5a6248] hover:bg-[#fbead6]"
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Mural de Recados</span>
         </button>
 
         <button
@@ -536,7 +572,17 @@ export function HostAdminClient({
         </div>
       )}
 
-      {/* TAB CONTENT 3: PHOTO BUNDLE EXPORT (ZIP) */}
+      {/* TAB CONTENT 3: PHOTO QUESTS */}
+      {activeTab === "quests" && (
+        <HostQuestsManager slug={event.slug} hostKey={event.hostKey} />
+      )}
+
+      {/* TAB CONTENT 4: CHAT MODERATION */}
+      {activeTab === "chat" && (
+        <HostChatManager slug={event.slug} hostKey={event.hostKey} />
+      )}
+
+      {/* TAB CONTENT 5: PHOTO BUNDLE EXPORT (ZIP) */}
       {activeTab === "bundle" && (
         <div className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl p-6 sm:p-8 text-center max-w-xl mx-auto shadow-sm">
           <div className="w-16 h-16 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] mx-auto mb-4">

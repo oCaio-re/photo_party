@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
+import { eq } from "drizzle-orm";
 import * as schema from "./schema";
 import crypto from "crypto";
 
@@ -51,13 +52,28 @@ export async function ensureSchema(): Promise<void> {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS photo_quests (
+          id TEXT PRIMARY KEY,
+          event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT,
+          icon TEXT DEFAULT '🎯',
+          is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMP NOT NULL
+        );
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS photos (
           id TEXT PRIMARY KEY,
           event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
           table_id TEXT REFERENCES tables(id) ON DELETE SET NULL,
+          quest_id TEXT REFERENCES photo_quests(id) ON DELETE SET NULL,
+          quest_title TEXT,
           guest_name TEXT,
           guest_session_id TEXT,
           message TEXT,
+          media_type TEXT NOT NULL DEFAULT 'photo',
           storage_path TEXT NOT NULL,
           url TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'approved',
@@ -65,10 +81,11 @@ export async function ensureSchema(): Promise<void> {
         );
       `;
 
-      // Safe idempotent migration for existing databases
-      await sql`
-        ALTER TABLE photos ADD COLUMN IF NOT EXISTS guest_session_id TEXT;
-      `;
+      // Safe idempotent migrations executed individually
+      await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS guest_session_id TEXT`;
+      await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS quest_id TEXT`;
+      await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS quest_title TEXT`;
+      await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS media_type TEXT NOT NULL DEFAULT 'photo'`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS photo_likes (
@@ -87,6 +104,18 @@ export async function ensureSchema(): Promise<void> {
           guest_session_id TEXT NOT NULL,
           guest_name TEXT NOT NULL,
           content TEXT NOT NULL,
+          created_at TIMESTAMP NOT NULL
+        );
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+          guest_session_id TEXT NOT NULL,
+          guest_name TEXT NOT NULL,
+          table_identifier TEXT,
+          message TEXT NOT NULL,
           created_at TIMESTAMP NOT NULL
         );
       `;
@@ -131,6 +160,39 @@ export async function ensureSchema(): Promise<void> {
               identifier: table,
               createdAt: now,
             });
+        }
+      }
+
+      // Ensure default photo quests exist for each event
+      const allEvents = await db.select().from(schema.events);
+      const defaultWeddingQuests = [
+        { icon: "🥂", title: "O Brinde da Mesa", description: "Faça um brinde animado com todo mundo na sua mesa!" },
+        { icon: "💍", title: "Momento com os Noivos", description: "Aquele abraço ou foto especial com Sarah & Caio." },
+        { icon: "🕺", title: "Rei ou Rainha da Pista", description: "O passo de dança mais criativo da festa!" },
+        { icon: "😄", title: "Sorriso Espontâneo", description: "A melhor gargalhada ou momento descontraído." },
+        { icon: "🍰", title: "Doce Tentação", description: "O bolo, os docinhos ou aquele detalhe delicioso." },
+        { icon: "👗", title: "Look da Noite", description: "Aquele traje ou detalhe estiloso de alguém na festa." },
+        { icon: "📸", title: "Grande Selfie Coletiva", description: "Junte o máximo de amigos em uma foto só!" },
+      ];
+
+      for (const ev of allEvents) {
+        const existingQuests = await db
+          .select()
+          .from(schema.photoQuests)
+          .where(eq(schema.photoQuests.eventId, ev.id));
+        if (existingQuests.length === 0) {
+          const now = new Date();
+          for (const q of defaultWeddingQuests) {
+            await db.insert(schema.photoQuests).values({
+              id: crypto.randomUUID(),
+              eventId: ev.id,
+              title: q.title,
+              description: q.description,
+              icon: q.icon,
+              isActive: true,
+              createdAt: now,
+            });
+          }
         }
       }
     } catch (error) {

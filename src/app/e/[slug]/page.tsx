@@ -54,6 +54,9 @@ export default async function EventPage({ params, searchParams }: EventPageProps
       createdAt: photos.createdAt,
       tableId: photos.tableId,
       tableIdentifier: tables.identifier,
+      questId: photos.questId,
+      questTitle: photos.questTitle,
+      mediaType: photos.mediaType,
       likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
       commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
     })
@@ -71,6 +74,9 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     createdAt: p.createdAt ? new Date(p.createdAt).getTime() : 0,
     tableId: p.tableId,
     tableIdentifier: p.tableIdentifier,
+    questId: p.questId,
+    questTitle: p.questTitle,
+    mediaType: (p.mediaType as "photo" | "video") || "photo",
     likeCount: p.likeCount || 0,
     commentCount: p.commentCount || 0,
   }));

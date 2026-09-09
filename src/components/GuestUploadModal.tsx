@@ -1,9 +1,26 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
+import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle, HelpCircle, Video } from "lucide-react";
 import { compressImage } from "@/lib/client-compress";
 import { openHowItWorksGuide } from "@/components/HowItWorksModal";
+
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    const tempUrl = URL.createObjectURL(file);
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(tempUrl);
+      resolve(video.duration);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(tempUrl);
+      reject(new Error("Erro ao ler vídeo"));
+    };
+    video.src = tempUrl;
+  });
+}
 
 interface GuestUploadModalProps {
   slug: string;
@@ -22,13 +39,62 @@ export function GuestUploadModal({
 }: GuestUploadModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null);
-  const [originalSize, setOriginalSize] = useState<number>(0);
-  const [compressedSize, setCompressedSize] = useState<number>(0);
+  const [isVideo, setIsVideo] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [useVintagePreset, setUseVintagePreset] = useState(true);
+
+  // Initial preview URL before compression finishes
+  const [initialPreviewUrl, setInitialPreviewUrl] = useState<string | null>(null);
+
+  // Vintage processed version
+  const [vintageBlob, setVintageBlob] = useState<Blob | null>(null);
+  const [vintagePreviewUrl, setVintagePreviewUrl] = useState<string | null>(null);
+  const [vintageSize, setVintageSize] = useState<number>(0);
+
+  // Raw original processed version
+  const [rawBlob, setRawBlob] = useState<Blob | null>(null);
+  const [rawPreviewUrl, setRawPreviewUrl] = useState<string | null>(null);
+  const [rawSize, setRawSize] = useState<number>(0);
+
+  const [originalFileSize, setOriginalFileSize] = useState<number>(0);
+
+  const displayPreviewUrl =
+    (useVintagePreset ? vintagePreviewUrl : rawPreviewUrl) || initialPreviewUrl;
+  const activeBlob = useVintagePreset ? (vintageBlob || rawBlob) : (rawBlob || vintageBlob);
+  const activeCompressedSize = useVintagePreset ? (vintageSize || rawSize) : (rawSize || vintageSize);
 
   const [guestName, setGuestName] = useState("");
   const [message, setMessage] = useState("");
+
+  const [quests, setQuests] = useState<Array<{ id: string; title: string; icon: string | null }>>([]);
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
+
+  // Fetch available quests
+  useEffect(() => {
+    fetch(`/api/events/${slug}/quests`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.quests)) {
+          setQuests(data.quests);
+        }
+      })
+      .catch(() => {});
+  }, [slug]);
+
+  // Listen for fulfill quest triggers
+  useEffect(() => {
+    const handleQuestEvent = (e: Event) => {
+      const ce = e as CustomEvent<{ quest: { id: string; title: string; icon?: string | null } }>;
+      if (ce.detail?.quest) {
+        setSelectedQuestId(ce.detail.quest.id);
+        cameraInputRef.current?.click();
+      }
+    };
+    window.addEventListener("photo_party_fulfill_quest", handleQuestEvent);
+    return () => {
+      window.removeEventListener("photo_party_fulfill_quest", handleQuestEvent);
+    };
+  }, []);
 
   // Pre-fill name from localStorage if previously stored
   useEffect(() => {
@@ -47,68 +113,129 @@ export function GuestUploadModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  // Clean up object URL on unmount or when preview changes
+  const cleanupUrls = () => {
+    if (initialPreviewUrl) URL.revokeObjectURL(initialPreviewUrl);
+    if (vintagePreviewUrl) URL.revokeObjectURL(vintagePreviewUrl);
+    if (rawPreviewUrl) URL.revokeObjectURL(rawPreviewUrl);
+  };
+
+  // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      cleanupUrls();
     };
-  }, [previewUrl]);
+  }, [initialPreviewUrl, vintagePreviewUrl, rawPreviewUrl]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     e.target.value = "";
     if (!selectedFile) return;
 
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
+    cleanupUrls();
     setErrorMessage(null);
     setSuccessMessage(null);
     setFile(selectedFile);
-    setOriginalSize(selectedFile.size);
+    setOriginalFileSize(selectedFile.size);
 
-    // Create local object URL for preview and open modal
-    const preview = URL.createObjectURL(selectedFile);
-    setPreviewUrl(preview);
+    // Initial raw preview for instant responsiveness
+    const initUrl = URL.createObjectURL(selectedFile);
+    setInitialPreviewUrl(initUrl);
     setIsOpen(true);
+
+    const isVid = selectedFile.type.startsWith("video/");
+    if (isVid) {
+      if (selectedFile.size > 15 * 1024 * 1024) {
+        setErrorMessage("O vídeo selecionado ultrapassa o limite de 15MB. Por favor, escolha ou grave um clipe menor.");
+        return;
+      }
+
+      try {
+        const dur = await getVideoDuration(selectedFile);
+        if (dur > 15.5) {
+          setErrorMessage(
+            `Vídeos são limitados a 15 segundos para caber no evento. O clipe selecionado tem ${Math.round(
+              dur
+            )}s. Escolha um clipe de até 15s.`
+          );
+          return;
+        }
+
+        setIsVideo(true);
+        setVideoDuration(dur);
+        setVintageBlob(selectedFile);
+        setRawBlob(selectedFile);
+        setVintageSize(selectedFile.size);
+        setRawSize(selectedFile.size);
+        setVintagePreviewUrl(initUrl);
+        setRawPreviewUrl(initUrl);
+        return;
+      } catch (err) {
+        setErrorMessage("Não foi possível carregar os metadados do vídeo. Verifique se o formato é válido.");
+        return;
+      }
+    }
+
+    setIsVideo(false);
+    setVideoDuration(0);
 
     try {
       setIsCompressing(true);
-      const { blob } = await compressImage(selectedFile);
-      setCompressedBlob(blob);
-      setCompressedSize(blob.size);
+      const [vintageResult, rawResult] = await Promise.all([
+        compressImage(selectedFile, { applyVintagePreset: true }),
+        compressImage(selectedFile, { applyVintagePreset: false }),
+      ]);
+
+      const vUrl = URL.createObjectURL(vintageResult.blob);
+      const rUrl = URL.createObjectURL(rawResult.blob);
+
+      setVintageBlob(vintageResult.blob);
+      setVintagePreviewUrl(vUrl);
+      setVintageSize(vintageResult.blob.size);
+
+      setRawBlob(rawResult.blob);
+      setRawPreviewUrl(rUrl);
+      setRawSize(rawResult.blob.size);
     } catch (err) {
       console.warn("Client compression failed, using original file:", err);
-      setCompressedBlob(selectedFile);
-      setCompressedSize(selectedFile.size);
+      setVintageBlob(selectedFile);
+      setVintagePreviewUrl(initUrl);
+      setVintageSize(selectedFile.size);
+      setRawBlob(selectedFile);
+      setRawPreviewUrl(initUrl);
+      setRawSize(selectedFile.size);
     } finally {
       setIsCompressing(false);
     }
   };
 
   const resetForm = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
+    cleanupUrls();
     setFile(null);
-    setPreviewUrl(null);
-    setCompressedBlob(null);
+    setIsVideo(false);
+    setVideoDuration(0);
+    setInitialPreviewUrl(null);
+    setVintageBlob(null);
+    setVintagePreviewUrl(null);
+    setVintageSize(0);
+    setRawBlob(null);
+    setRawPreviewUrl(null);
+    setRawSize(0);
     setErrorMessage(null);
     setSuccessMessage(null);
     setUploadProgress(0);
+    setSelectedQuestId(null);
     if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (videoInputRef.current) videoInputRef.current.value = "";
     if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!compressedBlob) {
-      setErrorMessage("Por favor, selecione uma foto.");
+    if (!activeBlob) {
+      setErrorMessage("Por favor, selecione uma foto ou clipe de vídeo.");
       return;
     }
 
@@ -129,9 +256,14 @@ export function GuestUploadModal({
       }
 
       const formData = new FormData();
-      formData.append("file", compressedBlob, file?.name || "photo.webp");
+      formData.append(
+        "file",
+        activeBlob,
+        file?.name || (isVideo ? "clip.mp4" : "photo.webp")
+      );
       formData.append("guestSessionId", sId);
       if (tableId) formData.append("tableId", tableId);
+      if (selectedQuestId) formData.append("questId", selectedQuestId);
       if (guestName.trim()) formData.append("guestName", guestName.trim());
       if (message.trim()) formData.append("message", message.trim());
 
@@ -149,7 +281,7 @@ export function GuestUploadModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Erro ao enviar a foto");
+        throw new Error(data.error || "Erro ao publicar a mídia.");
       }
 
       // Record uploaded photo ID for instant local ownership tracking
@@ -217,42 +349,64 @@ export function GuestUploadModal({
         aria-label="Tirar foto com a câmera"
       />
 
-      {/* Hidden Gallery Input (opens gallery / photo library) */}
+      {/* Hidden Video Input (forces video camera on mobile, up to 15s) */}
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        capture="environment"
+        onChange={handleFileChange}
+        className="hidden"
+        aria-label="Gravar clipe de vídeo"
+      />
+
+      {/* Hidden Gallery Input (opens gallery / photo & video library) */}
       <input
         ref={galleryInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         onChange={handleFileChange}
         className="hidden"
-        aria-label="Escolher foto da galeria"
+        aria-label="Escolher foto ou vídeo da galeria"
       />
 
       {/* Elegant Floating / Main Action Buttons */}
-      <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center items-center gap-2.5 px-4 pointer-events-none">
+      <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center items-center gap-2 px-3 sm:gap-2.5 sm:px-4 pointer-events-none">
         {/* Primary Action: Tirar Foto (Direct Camera) */}
         <button
           type="button"
           onClick={() => cameraInputRef.current?.click()}
-          className="pointer-events-auto flex items-center gap-2.5 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-[#fffaf5] px-5 sm:px-6 py-3.5 rounded-full shadow-[0_10px_25px_rgba(203,125,135,0.45)] transition-all duration-200 border border-[#fffaf5]/40 font-serif text-base sm:text-lg tracking-wide"
+          className="pointer-events-auto flex items-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-[#fffaf5] px-4 sm:px-5 py-3.5 rounded-full shadow-[0_10px_25px_rgba(203,125,135,0.45)] transition-all duration-200 border border-[#fffaf5]/40 font-serif text-sm sm:text-base tracking-wide cursor-pointer"
         >
           <Camera className="w-5 h-5 text-[#ebca90]" />
           <span>Tirar Foto</span>
           {tableName && (
-            <span className="text-xs bg-[#5a6248] text-[#fbead6] px-2 py-0.5 rounded-full font-sans tracking-normal ml-0.5">
+            <span className="text-[11px] bg-[#5a6248] text-[#fbead6] px-2 py-0.5 rounded-full font-sans tracking-normal ml-0.5">
               {tableName}
             </span>
           )}
+        </button>
+
+        {/* Video Action: Gravar Vídeo (até 15s) */}
+        <button
+          type="button"
+          onClick={() => videoInputRef.current?.click()}
+          className="pointer-events-auto flex items-center gap-1.5 bg-[#832d3b] hover:bg-[#722633] active:scale-95 text-[#fffaf5] px-3.5 sm:px-4 py-3.5 rounded-full shadow-[0_10px_25px_rgba(131,45,59,0.35)] transition-all duration-200 border border-[#fffaf5]/30 font-serif text-sm sm:text-base tracking-wide cursor-pointer"
+          title="Gravar vídeo curto (até 15s)"
+        >
+          <Video className="w-4 h-4 text-[#ebca90]" />
+          <span className="hidden xs:inline">Vídeo (15s)</span>
         </button>
 
         {/* Secondary Action: Galeria (Choose from files / gallery) */}
         <button
           type="button"
           onClick={() => galleryInputRef.current?.click()}
-          className="pointer-events-auto flex items-center gap-2 bg-[#5a6248] hover:bg-[#49503b] active:scale-95 text-[#fbead6] px-4 sm:px-5 py-3.5 rounded-full shadow-[0_10px_25px_rgba(90,98,72,0.35)] transition-all duration-200 border border-[#fffaf5]/30 font-serif text-base tracking-wide"
-          title="Escolher foto já tirada da galeria"
+          className="pointer-events-auto flex items-center gap-1.5 bg-[#5a6248] hover:bg-[#49503b] active:scale-95 text-[#fbead6] px-3.5 sm:px-4 py-3.5 rounded-full shadow-[0_10px_25px_rgba(90,98,72,0.35)] transition-all duration-200 border border-[#fffaf5]/30 font-serif text-sm sm:text-base tracking-wide cursor-pointer"
+          title="Escolher foto ou vídeo salvo no aparelho"
         >
-          <ImageIcon className="w-5 h-5 text-[#ebca90]" />
-          <span>Galeria</span>
+          <ImageIcon className="w-4 h-4 text-[#ebca90]" />
+          <span className="hidden sm:inline">Galeria</span>
         </button>
 
         {/* Help / How It Works Button */}
@@ -304,81 +458,155 @@ export function GuestUploadModal({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Image Picker / Preview Area */}
-              {!previewUrl ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Image / Video Picker / Preview Area */}
+              {!displayPreviewUrl ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Option 1: Live Camera */}
                   <button
                     type="button"
                     onClick={() => cameraInputRef.current?.click()}
-                    className="border-2 border-dashed border-[#cb7d87]/50 hover:border-[#cb7d87] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
+                    className="border-2 border-dashed border-[#cb7d87]/50 hover:border-[#cb7d87] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
                   >
-                    <div className="w-14 h-14 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform mb-2">
-                      <Camera className="w-7 h-7" />
+                    <div className="w-12 h-12 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform mb-2">
+                      <Camera className="w-6 h-6" />
                     </div>
-                    <p className="font-serif text-base font-semibold text-[#5a6248]">Tirar Foto</p>
-                    <p className="text-[11px] text-[#7c8764] mt-1">Abre a câmera do celular</p>
+                    <p className="font-serif text-sm sm:text-base font-semibold text-[#5a6248]">Tirar Foto</p>
+                    <p className="text-[10px] sm:text-[11px] text-[#7c8764] mt-0.5">Câmera fotográfica</p>
                   </button>
 
-                  {/* Option 2: Gallery Picker */}
+                  {/* Option 2: Short Video (up to 15s) */}
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="border-2 border-dashed border-[#832d3b]/45 hover:border-[#832d3b] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-[#832d3b]/15 flex items-center justify-center text-[#832d3b] group-hover:scale-110 transition-transform mb-2">
+                      <Video className="w-6 h-6" />
+                    </div>
+                    <p className="font-serif text-sm sm:text-base font-semibold text-[#832d3b]">Gravar Vídeo</p>
+                    <p className="text-[10px] sm:text-[11px] text-[#7c8764] mt-0.5">Clipe até 15s</p>
+                  </button>
+
+                  {/* Option 3: Gallery Picker */}
                   <button
                     type="button"
                     onClick={() => galleryInputRef.current?.click()}
-                    className="border-2 border-dashed border-[#5a6248]/40 hover:border-[#5a6248] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
+                    className="border-2 border-dashed border-[#5a6248]/40 hover:border-[#5a6248] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
                   >
-                    <div className="w-14 h-14 rounded-full bg-[#5a6248]/15 flex items-center justify-center text-[#5a6248] group-hover:scale-110 transition-transform mb-2">
-                      <ImageIcon className="w-7 h-7" />
+                    <div className="w-12 h-12 rounded-full bg-[#5a6248]/15 flex items-center justify-center text-[#5a6248] group-hover:scale-110 transition-transform mb-2">
+                      <ImageIcon className="w-6 h-6" />
                     </div>
-                    <p className="font-serif text-base font-semibold text-[#5a6248]">Escolher da Galeria</p>
-                    <p className="text-[11px] text-[#7c8764] mt-1">Fotos salvas no aparelho</p>
+                    <p className="font-serif text-sm sm:text-base font-semibold text-[#5a6248]">Galeria</p>
+                    <p className="text-[10px] sm:text-[11px] text-[#7c8764] mt-0.5">Fotos ou vídeos</p>
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <div className="relative rounded-2xl overflow-hidden border border-[#cb7d87]/20 bg-black/5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewUrl} alt="Pré-visualização" className="w-full max-h-64 object-contain bg-[#fbead6]/20" />
+                    {isVideo ? (
+                      <video
+                        src={displayPreviewUrl || ""}
+                        controls
+                        autoPlay
+                        playsInline
+                        className="w-full max-h-64 object-contain bg-black"
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={displayPreviewUrl || ""}
+                        alt="Pré-visualização"
+                        className="w-full max-h-64 object-contain bg-[#fbead6]/20 transition-all duration-200"
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={resetForm}
-                      className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
-                      title="Remover foto"
+                      className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors z-10 cursor-pointer"
+                      title="Remover mídia"
                     >
                       <X className="w-4 h-4" />
                     </button>
 
-                    {/* Compression stats badge */}
+                    {/* Stats badge */}
                     <div className="bg-[#5a6248] text-[#fbead6] text-[11px] px-3 py-1.5 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-[#ebca90]" />
-                        {isCompressing ? "Otimizando foto..." : "Otimizada para envio rápido"}
+                        {isVideo ? (
+                          <>
+                            <Video className="w-3.5 h-3.5 text-[#ebca90]" />
+                            <span>Clipe de Vídeo ({Math.round(videoDuration)}s)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5 text-[#ebca90]" />
+                            {isCompressing
+                              ? "Otimizando foto..."
+                              : useVintagePreset
+                              ? "✨ Visual analógico aplicado"
+                              : "Foto original otimizada"}
+                          </>
+                        )}
                       </span>
-                      {!isCompressing && compressedSize > 0 && (
+                      {!isCompressing && (activeCompressedSize > 0 || originalFileSize > 0) && (
                         <span className="opacity-90">
-                          {formatBytes(originalSize)} → <strong>{formatBytes(compressedSize)}</strong>
+                          {isVideo
+                            ? formatBytes(originalFileSize)
+                            : `${formatBytes(originalFileSize)} → ${formatBytes(activeCompressedSize)}`}
                         </span>
                       )}
                     </div>
                   </div>
 
+                  {/* Vintage Film Preset Toggle Pill (photos only) */}
+                  {!isVideo && (
+                    <div className="flex items-center justify-center pt-0.5">
+                      <div className="inline-flex items-center p-1 bg-[#fbead6]/80 rounded-full border border-[#cb7d87]/30 shadow-xs">
+                        <button
+                          type="button"
+                          onClick={() => setUseVintagePreset(true)}
+                          className={`flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs font-serif tracking-wide transition-all cursor-pointer ${
+                            useVintagePreset
+                              ? "bg-[#cb7d87] text-[#fffaf5] shadow-xs font-semibold"
+                              : "text-[#5a6248] hover:text-[#cb7d87]"
+                          }`}
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 ${useVintagePreset ? "text-[#ebca90]" : "text-[#cb7d87]"}`} />
+                          <span>✨ Analógico Vintage</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUseVintagePreset(false)}
+                          className={`flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs font-serif tracking-wide transition-all cursor-pointer ${
+                            !useVintagePreset
+                              ? "bg-[#5a6248] text-[#fbead6] shadow-xs font-semibold"
+                              : "text-[#5a6248] hover:text-[#cb7d87]"
+                          }`}
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>Original</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Switch / Retake buttons */}
-                  <div className="flex items-center justify-center gap-4 text-xs text-[#7c8764] pt-1">
+                  <div className="flex items-center justify-center gap-4 text-xs text-[#7c8764] pt-0.5">
                     <button
                       type="button"
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2"
+                      onClick={() => (isVideo ? videoInputRef.current?.click() : cameraInputRef.current?.click())}
+                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2 cursor-pointer"
                     >
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>Tirar outra foto</span>
+                      {isVideo ? <Video className="w-3.5 h-3.5" /> : <Camera className="w-3.5 h-3.5" />}
+                      <span>{isVideo ? "Gravar outro vídeo" : "Tirar outra foto"}</span>
                     </button>
                     <span>•</span>
                     <button
                       type="button"
                       onClick={() => galleryInputRef.current?.click()}
-                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2"
+                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2 cursor-pointer"
                     >
                       <ImageIcon className="w-3.5 h-3.5" />
-                      <span>Escolher da galeria</span>
+                      <span>Escolher outro da galeria</span>
                     </button>
                   </div>
                 </div>
@@ -414,6 +642,38 @@ export function GuestUploadModal({
                 />
               </div>
 
+              {/* Photo Quest Selector */}
+              {quests.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-[#5a6248] uppercase tracking-wider">
+                      🎯 Desafio da Festa (opcional)
+                    </label>
+                    {selectedQuestId && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedQuestId(null)}
+                        className="text-[10px] text-[#cb7d87] hover:underline"
+                      >
+                        remover desafio
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={selectedQuestId || ""}
+                    onChange={(e) => setSelectedQuestId(e.target.value || null)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#cb7d87]/30 bg-white focus:outline-none focus:border-[#cb7d87] text-xs text-[#49503b]"
+                  >
+                    <option value="">Nenhum desafio vinculado</option>
+                    {quests.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.icon || "🎯"} {q.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Status messages */}
               {errorMessage && (
                 <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 p-2.5 rounded-xl">
@@ -438,22 +698,24 @@ export function GuestUploadModal({
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <p className="text-[11px] text-center text-[#7c8764]">Enviando foto... {uploadProgress}%</p>
+                  <p className="text-[11px] text-center text-[#7c8764]">
+                    {isVideo ? "Enviando vídeo..." : "Enviando foto..."} {uploadProgress}%
+                  </p>
                 </div>
               )}
 
               {/* Submit button */}
               <button
                 type="submit"
-                disabled={!compressedBlob || isCompressing || isUploading}
-                className="w-full flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-50 disabled:cursor-not-allowed text-[#fffaf5] py-3 rounded-2xl font-serif text-lg tracking-wide shadow-md transition-all active:scale-[0.99]"
+                disabled={!activeBlob || isCompressing || isUploading}
+                className="w-full flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-50 disabled:cursor-not-allowed text-[#fffaf5] py-3 rounded-2xl font-serif text-lg tracking-wide shadow-md transition-all active:scale-[0.99] cursor-pointer"
               >
                 {isUploading ? (
                   <span>Publicando...</span>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Publicar Foto</span>
+                    <span>{isVideo ? "Publicar Clipe de Vídeo" : "Publicar Foto"}</span>
                   </>
                 )}
               </button>
