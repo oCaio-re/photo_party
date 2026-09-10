@@ -4,7 +4,12 @@ import { events, photos, photoLikes, photoComments } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getStorageProvider } from "@/lib/storage";
 
+import { ADMIN_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+
 function verifyHostKey(request: NextRequest, hostKey: string): boolean {
+  const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  if (token && verifySessionToken(token)) return true;
+
   const authHeader = request.headers.get("authorization");
   const url = new URL(request.url);
   const keyParam = url.searchParams.get("key");

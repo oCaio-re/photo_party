@@ -8,19 +8,23 @@ import {
   Heart,
   MessageSquare,
   Sparkles,
-  RefreshCw,
   Send,
   Trash2,
-  Clock,
-  Flame,
-  User,
-  AlertCircle,
-  Camera,
   Video,
-  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Clock,
+  Camera,
 } from "lucide-react";
+import { EventHeroHeader } from "@/components/EventHeroHeader";
 import { PhotoQuestsHub } from "@/components/PhotoQuestsHub";
 import { EventChatView } from "@/components/EventChatView";
+import {
+  WeddingMomentConfig,
+  DEFAULT_WEDDING_MOMENTS,
+  getCurrentActiveMomentId,
+} from "@/lib/moments";
 
 export interface PhotoItem {
   id: string;
@@ -28,6 +32,7 @@ export interface PhotoItem {
   guestName: string | null;
   message: string | null;
   mediaType?: "photo" | "video";
+  moment?: string | null;
   status: string;
   createdAt: string | number;
   tableId: string | null;
@@ -51,31 +56,144 @@ export interface CommentItem {
 
 interface LiveGalleryViewProps {
   slug: string;
+  title?: string;
+  tableName?: string;
   initialPhotos?: PhotoItem[];
+  momentsConfig?: WeddingMomentConfig[];
 }
 
-function formatTimeAgo(dateInput: string | number | Date): string {
+// Curated stock photos as default until real photos are uploaded (requested by user)
+const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
+  {
+    id: "stock-1",
+    url: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80",
+    guestName: "Banquete",
+    message: "Mesa impecável e jantar maravilhoso! Parabéns Caio & Sarah! 🥂",
+    status: "approved",
+    moment: "jantar",
+    createdAt: new Date("2026-12-11T20:55:00-03:00").getTime(),
+    tableId: null,
+    tableIdentifier: "Mesa 01",
+    likeCount: 18,
+    commentCount: 4,
+  },
+  {
+    id: "stock-2",
+    url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80",
+    guestName: "Padrinhos",
+    message: "Um brinde ao amor eterno de Caio & Sarah! ✨💍",
+    status: "approved",
+    moment: "recepcao",
+    createdAt: new Date("2026-12-11T21:05:00-03:00").getTime(),
+    tableId: null,
+    tableIdentifier: "Mesa 02",
+    likeCount: 34,
+    commentCount: 7,
+  },
+  {
+    id: "stock-3",
+    url: "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=800&q=80",
+    guestName: "Amigos",
+    message: "Pista de dança inesquecível com muitas luzes e alegria! 🔥✨",
+    status: "approved",
+    moment: "festa",
+    createdAt: new Date("2026-12-11T21:20:00-03:00").getTime(),
+    tableId: null,
+    tableIdentifier: "Pista",
+    likeCount: 22,
+    commentCount: 3,
+  },
+  {
+    id: "stock-4",
+    url: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800&q=80",
+    guestName: "Cerimonial",
+    message: "Decoração dos sonhos para esta celebração!",
+    status: "approved",
+    moment: "cerimonia",
+    createdAt: new Date("2026-12-11T22:00:00-03:00").getTime(),
+    tableId: null,
+    tableIdentifier: "Decoração",
+    likeCount: 45,
+    commentCount: 9,
+  },
+  {
+    id: "stock-5",
+    url: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800&q=80",
+    guestName: "Fotografia",
+    message: "As alianças e o buquê mais lindos! 🤍",
+    status: "approved",
+    moment: "bolo",
+    createdAt: new Date("2026-12-11T22:55:00-03:00").getTime(),
+    tableId: null,
+    tableIdentifier: "Alianças",
+    likeCount: 29,
+    commentCount: 5,
+  },
+  {
+    id: "stock-6",
+    url: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80",
+    guestName: "Família",
+    message: "Noite abençoada e inesquecível! Viva os noivos!",
+    status: "approved",
+    moment: "encerramento",
+    createdAt: new Date("2026-12-11T23:15:00-03:00").getTime(),
+    tableId: null,
+    tableIdentifier: "Família",
+    likeCount: 52,
+    commentCount: 11,
+  },
+];
+
+function formatPhotoTime(dateInput: string | number | Date): string {
   const date = new Date(dateInput);
-  const now = new Date();
-  const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-
-  if (diffInSeconds < 60) return "agora";
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes} min`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays}d`;
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
-export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewProps) {
+function VideoGridThumbnail({ url }: { url: string }) {
+  const [durationText, setDurationText] = useState("0:06");
+
+  return (
+    <>
+      <video
+        src={url}
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="metadata"
+        onLoadedMetadata={(e) => {
+          const dur = Math.round(e.currentTarget.duration || 6);
+          const m = Math.floor(dur / 60);
+          const s = String(dur % 60).padStart(2, "0");
+          setDurationText(`${m}:${s}`);
+        }}
+        className="w-full h-full object-cover pointer-events-none"
+      />
+      {/* Video duration pill (only on videos) */}
+      <span className="absolute top-1.5 right-1.5 z-10 text-[10px] font-semibold bg-black/60 backdrop-blur-xs text-white px-2 py-0.5 rounded-full shadow-xs pointer-events-none">
+        {durationText}
+      </span>
+    </>
+  );
+}
+
+export function LiveGalleryView({
+  slug,
+  title = "Caio & Sarah ✨💍",
+  tableName,
+  initialPhotos = [],
+  momentsConfig = DEFAULT_WEDDING_MOMENTS,
+}: LiveGalleryViewProps) {
+  const moments = momentsConfig && momentsConfig.length > 0 ? momentsConfig : DEFAULT_WEDDING_MOMENTS;
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos);
   const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null);
   const [selectedTable, setSelectedTable] = useState<string>("all");
-  const [mainTab, setMainTab] = useState<"gallery" | "quests" | "chat">("gallery");
+  const [mainTab, setMainTab] = useState<"hub" | "gallery" | "quests" | "chat">("hub");
   const [selectedQuestFilter, setSelectedQuestFilter] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortMode, setSortMode] = useState<"recent" | "likes">("recent");
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Guest identity
   const [guestSessionId, setGuestSessionId] = useState<string>("");
@@ -93,6 +211,7 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
   // Double tap heart animation
   const [animatingHeartPhotoId, setAnimatingHeartPhotoId] = useState<string | null>(null);
   const lastTapRef = useRef<{ [key: string]: number }>({});
+  const ignoreNextClickRef = useRef<string | null>(null);
 
   // Active photo comments in modal
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -294,6 +413,12 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
 
       if (isDoubleTap) {
         e.stopPropagation();
+        ignoreNextClickRef.current = photo.id;
+        setTimeout(() => {
+          if (ignoreNextClickRef.current === photo.id) {
+            ignoreNextClickRef.current = null;
+          }
+        }, 400);
         setAnimatingHeartPhotoId(photo.id);
         setTimeout(() => setAnimatingHeartPhotoId(null), 850);
         if (!photo.hasLiked) {
@@ -385,7 +510,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     [guestSessionId, slug]
   );
 
-  // Submit comment handler
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activePhoto) return;
@@ -403,7 +527,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     await postComment(activePhoto.id, trimmedContent, currentName);
   };
 
-  // Delete comment
   const handleDeleteComment = async (commentId: string) => {
     if (!activePhoto) return;
     const sId = guestSessionId || localStorage.getItem("photo_party_guest_id") || "";
@@ -432,7 +555,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     }
   };
 
-  // Check if current guest is permitted to delete this photo
   const canDeletePhoto = useCallback(
     (photo: PhotoItem): boolean => {
       return Boolean(photo.canDelete || myUploadedPhotoIds.has(photo.id));
@@ -440,7 +562,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     [myUploadedPhotoIds]
   );
 
-  // Confirm and execute photo deletion
   const handleConfirmDeletePhoto = async () => {
     if (!photoToDelete) return;
 
@@ -468,17 +589,14 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
         throw new Error(data.error || "Não foi possível apagar a foto.");
       }
 
-      // Optimistically remove from state
       setPhotos((prev) => prev.filter((p) => p.id !== photoToDelete.id));
 
-      // Remove from myUploadedPhotoIds
       setMyUploadedPhotoIds((prev) => {
         const next = new Set(prev);
         next.delete(photoToDelete.id);
         return next;
       });
 
-      // Update localStorage
       try {
         const stored = JSON.parse(localStorage.getItem("photo_party_my_photos") || "[]");
         if (Array.isArray(stored)) {
@@ -491,7 +609,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
         // ignore
       }
 
-      // If active photo in lightbox is the one deleted, close lightbox
       if (activePhoto?.id === photoToDelete.id) {
         setActivePhoto(null);
       }
@@ -504,7 +621,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     }
   };
 
-  // Save guest name from modal
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = nameInput.trim();
@@ -520,7 +636,6 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     }
   };
 
-  // Download photo
   const handleDownload = async (photo: PhotoItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     try {
@@ -540,96 +655,265 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
     }
   };
 
+  // Combine real photos with default stock photos if no user photos yet
+  const combinedPhotos = photos.length > 0 ? photos : DEFAULT_STOCK_PHOTOS;
+
   // Table options
   const tableOptions = Array.from(
     new Set(
-      photos
+      combinedPhotos
         .map((p) => p.tableIdentifier)
         .filter((name): name is string => Boolean(name))
     )
   ).sort();
 
   // Filter & Sort
-  const filteredPhotos = photos.filter((p) => {
+  const filteredPhotos = combinedPhotos.filter((p) => {
     if (selectedTable !== "all" && p.tableIdentifier !== selectedTable) return false;
     if (selectedQuestFilter !== "all" && p.questTitle !== selectedQuestFilter) return false;
+
+    // Filter by moment if a wedding moment is selected
+    if (moments.some((m) => m.id === selectedCategory)) {
+      if (p.moment !== selectedCategory) return false;
+    }
+
+    // Filter by category from exemplo_grid.png tabs & carousel
+    if (selectedCategory === "videos" && p.mediaType !== "video") return false;
+    if (selectedCategory === "quests" && !p.questTitle) return false;
+
     return true;
   });
 
   const sortedPhotos = [...filteredPhotos].sort((a, b) => {
-    if (sortMode === "likes") {
+    if (selectedCategory === "likes" || sortMode === "likes") {
       const diffLikes = (b.likeCount || 0) - (a.likeCount || 0);
       if (diffLikes !== 0) return diffLikes;
     }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  return (
-    <div className="w-full">
-      {/* Main Mode Tabs: Mural de Fotos vs Desafios vs Recados */}
-      <div className="flex items-center justify-center mb-6">
-        <div className="inline-flex p-1 bg-[#fffaf5] border border-[#cb7d87]/25 rounded-2xl shadow-xs">
-          <button
-            onClick={() => setMainTab("gallery")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
-              mainTab === "gallery"
-                ? "bg-[#5a6248] text-[#fbead6] shadow-xs"
-                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
-            }`}
-          >
-            <Camera className="w-4 h-4" />
-            <span>Mural ({photos.length})</span>
-          </button>
-          <button
-            onClick={() => setMainTab("quests")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
-              mainTab === "quests"
-                ? "bg-[#cb7d87] text-white shadow-xs"
-                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>🎯 Desafios</span>
-          </button>
-          <button
-            onClick={() => setMainTab("chat")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
-              mainTab === "chat"
-                ? "bg-[#cb7d87] text-white shadow-xs"
-                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>💬 Recados</span>
-          </button>
-        </div>
-      </div>
+  const activePhotoIndex = activePhoto ? sortedPhotos.findIndex((p) => p.id === activePhoto.id) : -1;
+  const prevPhoto = activePhotoIndex > 0 ? sortedPhotos[activePhotoIndex - 1] : null;
+  const nextPhoto =
+    activePhotoIndex >= 0 && activePhotoIndex < sortedPhotos.length - 1
+      ? sortedPhotos[activePhotoIndex + 1]
+      : null;
 
-      {mainTab === "quests" ? (
-        <PhotoQuestsHub
-          slug={slug}
-          onFilterByQuest={(questTitle) => {
-            setSelectedQuestFilter(questTitle);
-            setMainTab("gallery");
-          }}
-        />
-      ) : mainTab === "chat" ? (
-        <EventChatView
-          slug={slug}
-          guestSessionId={guestSessionId}
-          guestName={guestName}
-          onChangeName={() => {
-            setNameInput(guestName);
-            setShowNameModal(true);
-          }}
-        />
-      ) : (
-        <>
+  // Keyboard navigation for active photo modal
+  useEffect(() => {
+    if (!activePhoto) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+
+      if (e.key === "Escape") {
+        setActivePhoto(null);
+      } else if (!isInput && e.key === "ArrowLeft") {
+        const idx = sortedPhotos.findIndex((p) => p.id === activePhoto.id);
+        if (idx > 0) {
+          setActivePhoto(sortedPhotos[idx - 1]);
+        }
+      } else if (!isInput && e.key === "ArrowRight") {
+        const idx = sortedPhotos.findIndex((p) => p.id === activePhoto.id);
+        if (idx >= 0 && idx < sortedPhotos.length - 1) {
+          setActivePhoto(sortedPhotos[idx + 1]);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activePhoto, sortedPhotos]);
+
+  const selectedMomentObj = moments.find((m) => m.id === selectedCategory);
+
+  return (
+    <div className="w-full min-h-screen bg-white text-gray-900 flex flex-col items-center">
+      {/* 1. HUB VIEW: Identical to exemplo_nova_UI.jpeg */}
+      {mainTab === "hub" && (
+        <div className="w-full max-w-md sm:max-w-3xl md:max-w-4xl lg:max-w-5xl mx-auto pb-24">
+          <EventHeroHeader
+            slug={slug}
+            title={title}
+            photos={photos}
+            tableName={tableName}
+            activeTab={mainTab}
+            onTabChange={(tab) => setMainTab(tab)}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              if (cat === "recent") setSortMode("recent");
+              if (cat === "likes") setSortMode("likes");
+            }}
+            momentsConfig={moments}
+          />
+        </div>
+      )}
+
+      {/* 2. GALLERY VIEW: Identical to exemplo_grid.png */}
+      {mainTab === "gallery" && (
+        <div className="w-full max-w-md sm:max-w-3xl md:max-w-5xl lg:max-w-6xl mx-auto pb-28 px-0 sm:px-4">
+          {/* Top Bar matching exemplo_grid.png: < 🦋 Caio & Sarah ↓ + */}
+          <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 py-3 sm:py-4 px-4 sm:px-2 flex items-center justify-between">
+            <button
+              onClick={() => setMainTab("hub")}
+              className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 text-gray-900 transition-colors cursor-pointer"
+              title="Voltar ao início"
+              aria-label="Voltar ao início"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center gap-1.5 text-gray-900">
+              <span className="text-base sm:text-lg">🦋</span>
+              <span className="font-bold text-base sm:text-lg tracking-tight">
+                {title}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/events/${slug}/bundle`}
+                download
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-800 transition-colors cursor-pointer"
+                title="Baixar todas as fotos"
+                aria-label="Baixar todas as fotos"
+              >
+                <Download className="w-5 h-5 sm:w-6 sm:h-6" />
+              </a>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("open-upload-modal"))}
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-800 transition-colors cursor-pointer"
+                title="Adicionar foto ou vídeo"
+                aria-label="Adicionar foto ou vídeo"
+              >
+                <Plus className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Horizontal Category Tabs with Active Bottom Underline (from exemplo_grid.png) */}
+          <div className="flex items-center gap-6 sm:gap-8 px-4 sm:px-2 pt-3 border-b border-gray-100 overflow-x-auto scrollbar-none text-sm sm:text-base bg-white">
+            <button
+              onClick={() => {
+                setSelectedCategory("all");
+                setSelectedTable("all");
+                setSelectedQuestFilter("all");
+              }}
+              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
+                selectedCategory === "all" && selectedTable === "all" && selectedQuestFilter === "all"
+                  ? "text-gray-900 font-bold"
+                  : "text-gray-400 hover:text-gray-700 font-medium"
+              }`}
+            >
+              <span>Ver todos</span>
+              {selectedCategory === "all" && selectedTable === "all" && selectedQuestFilter === "all" && (
+                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
+              )}
+            </button>
+
+            {/* 6 Wedding Moments Tabs */}
+            {moments.map((m) => {
+              const isSelected = selectedCategory === m.id;
+              const isCurrent = getCurrentActiveMomentId(moments) === m.id;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setSelectedCategory(m.id);
+                    setSelectedTable("all");
+                    setSelectedQuestFilter("all");
+                  }}
+                  className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? "text-gray-900 font-bold"
+                      : "text-gray-400 hover:text-gray-700 font-medium"
+                  }`}
+                >
+                  <span>{m.icon}</span>
+                  <span>{m.name}</span>
+                  {isCurrent && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#cb7d87] animate-pulse" />
+                  )}
+                  {isSelected && (
+                    <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-[#cb7d87] rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+
+            <button
+              onClick={() => {
+                setSelectedCategory("likes");
+                setSortMode("likes");
+              }}
+              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
+                selectedCategory === "likes"
+                  ? "text-gray-900 font-bold"
+                  : "text-gray-400 hover:text-gray-700 font-medium"
+              }`}
+            >
+              <span>Mais Curtidas</span>
+              {selectedCategory === "likes" && (
+                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setSelectedCategory("videos")}
+              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
+                selectedCategory === "videos"
+                  ? "text-gray-900 font-bold"
+                  : "text-gray-400 hover:text-gray-700 font-medium"
+              }`}
+            >
+              <span>Vídeos</span>
+              {selectedCategory === "videos" && (
+                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setSelectedCategory("quests")}
+              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
+                selectedCategory === "quests"
+                  ? "text-gray-900 font-bold"
+                  : "text-gray-400 hover:text-gray-700 font-medium"
+              }`}
+            >
+              <span>Desafios</span>
+              {selectedCategory === "quests" && (
+                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
+              )}
+            </button>
+
+            {/* Table filter tabs if present */}
+            {tableOptions.map((tName) => (
+              <button
+                key={tName}
+                onClick={() => {
+                  setSelectedTable(tName);
+                  setSelectedCategory("all");
+                }}
+                className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
+                  selectedTable === tName
+                    ? "text-gray-900 font-bold"
+                    : "text-gray-400 hover:text-gray-700 font-medium"
+                }`}
+              >
+                <span>{tName}</span>
+                {selectedTable === tName && (
+                  <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
+                )}
+              </button>
+            ))}
+          </div>
+
           {/* Active Quest Filter Banner */}
           {selectedQuestFilter !== "all" && (
-            <div className="flex items-center justify-between bg-[#cb7d87]/15 border border-[#cb7d87]/30 px-4 py-2 rounded-2xl mb-4 text-xs">
-              <span className="text-[#5a6248] font-medium flex items-center gap-1.5">
-                <span>🎯 Filtrando por desafio:</span>
+            <div className="flex items-center justify-between bg-[#cb7d87]/10 border border-[#cb7d87]/25 px-4 py-2 mx-2 my-2 rounded-2xl text-xs">
+              <span className="text-gray-700 font-medium flex items-center gap-1.5">
+                <span>🎯 Desafio:</span>
                 <strong className="text-[#cb7d87] font-semibold">{selectedQuestFilter}</strong>
               </span>
               <button
@@ -637,268 +921,201 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 className="text-[#cb7d87] hover:underline font-medium text-[11px] flex items-center gap-1 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
-                Limpar filtro
+                Limpar
               </button>
             </div>
           )}
 
-          {/* Top Bar: Sort Mode Toggle & Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        {/* Sort Mode Buttons */}
-        <div className="inline-flex p-1 bg-[#fffaf5] border border-[#cb7d87]/25 rounded-2xl shadow-xs self-start">
-          <button
-            onClick={() => setSortMode("recent")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-              sortMode === "recent"
-                ? "bg-[#cb7d87] text-white shadow-xs"
-                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Mais Recentes</span>
-          </button>
-          <button
-            onClick={() => setSortMode("likes")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-              sortMode === "likes"
-                ? "bg-[#cb7d87] text-white shadow-xs"
-                : "text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6]/50"
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-            <span>Mais Curtidas</span>
-          </button>
-        </div>
+          {/* Active Moment Teaser (when a moment tab has 0 photos) */}
+          {selectedMomentObj && sortedPhotos.length === 0 && (
+            <div className="mx-4 my-10 p-8 rounded-3xl bg-[#fffaf5] border border-[#cb7d87]/25 text-center shadow-sm">
+              <div className="w-16 h-16 rounded-full bg-rose-50 border border-[#cb7d87]/30 flex items-center justify-center text-3xl mx-auto mb-3 shadow-xs">
+                {selectedMomentObj.icon}
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[11px] text-[#cb7d87] font-semibold mb-2 border border-[#cb7d87]/20 shadow-2xs">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{selectedMomentObj.startTime} - {selectedMomentObj.endTime}</span>
+              </div>
+              <h3 className="font-sans font-bold text-xl text-gray-900 mb-1.5">
+                {selectedMomentObj.name}
+              </h3>
+              <p className="text-xs text-gray-600 max-w-xs mx-auto mb-6 leading-relaxed">
+                {selectedMomentObj.description || "Este momento está chegando!"} Seja o primeiro a registrar fotos e vídeos quando começar ✨
+              </p>
+              <button
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open-upload-modal", {
+                      detail: { moment: selectedMomentObj.id },
+                    })
+                  )
+                }
+                className="inline-flex items-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-white px-6 py-3 rounded-full text-xs font-semibold shadow-md transition-all cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Registrar este momento</span>
+              </button>
+            </div>
+          )}
 
-        {/* User name indicator / switcher */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <button
-            onClick={() => {
-              setNameInput(guestName);
-              setShowNameModal(true);
-            }}
-            className="flex items-center gap-1.5 text-xs text-[#5a6248] hover:text-[#cb7d87] bg-[#fffaf5] border border-[#cb7d87]/20 px-3 py-1.5 rounded-full transition-colors"
-            title="Alterar seu nome"
-          >
-            <User className="w-3.5 h-3.5 text-[#cb7d87]" />
-            <span className="truncate max-w-[120px]">
-              {guestName ? guestName : "Convidado Anônimo"}
-            </span>
-          </button>
+          {/* Empty General Filter State */}
+          {!selectedMomentObj && sortedPhotos.length === 0 && (
+            <div className="py-20 text-center text-gray-400">
+              <Camera className="w-10 h-10 mx-auto mb-2 opacity-40 text-gray-400" />
+              <p className="text-sm font-medium">Nenhuma mídia encontrada nesta categoria</p>
+            </div>
+          )}
 
-          <Link
-            href={`/e/${slug}/guestbook`}
-            className="flex items-center gap-1.5 text-xs text-[#5a6248] hover:text-[#cb7d87] bg-[#fffaf5] border border-[#cb7d87]/20 px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-2xs"
-            title="Abrir Livro Digital de Recordações"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-[#cb7d87]" />
-            <span className="hidden sm:inline">Livro de Recordações</span>
-          </Link>
-
-          <button
-            onClick={async () => {
-              setIsRefreshing(true);
-              await fetchLatestPhotos();
-              setTimeout(() => setIsRefreshing(false), 400);
-            }}
-            className="p-1.5 text-[#5a6248] hover:text-[#cb7d87] rounded-full transition-transform active:rotate-180 cursor-pointer"
-            title="Atualizar galeria"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Table Filter Tabs */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 border-b border-[#cb7d87]/20 scrollbar-none">
-        <button
-          onClick={() => setSelectedTable("all")}
-          className={`text-xs px-4 py-1.5 rounded-full transition-all font-medium whitespace-nowrap ${
-            selectedTable === "all"
-              ? "bg-[#5a6248] text-[#fbead6] shadow-sm"
-              : "bg-[#fffaf5] text-[#5a6248] hover:bg-[#fbead6] border border-[#cb7d87]/20"
-          }`}
-        >
-          Todas as Fotos ({photos.length})
-        </button>
-        {tableOptions.map((tName) => (
-          <button
-            key={tName}
-            onClick={() => setSelectedTable(tName)}
-            className={`text-xs px-3 py-1.5 rounded-full transition-all font-medium whitespace-nowrap ${
-              selectedTable === tName
-                ? "bg-[#5a6248] text-[#fbead6] shadow-sm"
-                : "bg-[#fffaf5] text-[#5a6248] hover:bg-[#fbead6] border border-[#5a6248]/20"
-            }`}
-          >
-            {tName}
-          </button>
-        ))}
-      </div>
-
-      {/* Photos Grid */}
-      {sortedPhotos.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-[#fffaf5]/70 rounded-3xl border border-[#cb7d87]/20 max-w-md mx-auto shadow-sm">
-          <div className="w-14 h-14 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] mx-auto mb-3">
-            <Sparkles className="w-7 h-7" />
-          </div>
-          <h4 className="font-serif text-2xl text-[#5a6248]">Ainda sem fotos</h4>
-          <p className="text-xs text-[#7c8764] mt-1">
-            Seja a primeira mesa a compartilhar um momento clicando no botão abaixo!
-          </p>
-        </div>
-      ) : (
-        <div className="columns-2 sm:columns-3 md:columns-4 gap-4 space-y-4">
-          {sortedPhotos.map((photo) => (
-            <div
-              key={photo.id}
-              onClick={() => setActivePhoto(photo)}
-              onDoubleClick={(e) => handlePhotoDoubleTap(photo, e)}
-              onTouchEnd={(e) => handlePhotoDoubleTap(photo, e)}
-              className="break-inside-avoid group cursor-pointer bg-[#fffaf5] border border-[#cb7d87]/25 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative"
-            >
-              {/* Media Container (Photo or Video) */}
-              <div className="relative overflow-hidden bg-[#fbead6]/40 select-none">
-                {photo.mediaType === "video" ? (
-                  <div className="relative w-full">
-                    <video
+          {/* Portrait 3:4 Grid identical to exemplo_grid.png on mobile, and responsive multi-column with rounded corners on desktop */}
+          {sortedPhotos.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-[2px] sm:gap-3 md:gap-4 bg-white pt-1 sm:pt-4">
+              {sortedPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  onClick={() => {
+                    if (ignoreNextClickRef.current === photo.id) return;
+                    setActivePhoto(photo);
+                  }}
+                  onDoubleClick={(e) => handlePhotoDoubleTap(photo, e)}
+                  onTouchEnd={(e) => handlePhotoDoubleTap(photo, e)}
+                  className="relative aspect-[3/4] overflow-hidden rounded-none sm:rounded-2xl sm:shadow-xs hover:sm:shadow-lg bg-gray-100 cursor-pointer group select-none active:scale-[0.98] transition-all"
+                >
+                  {/* Media Container */}
+                  {photo.mediaType === "video" ? (
+                    <VideoGridThumbnail url={photo.url} />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
                       src={photo.url}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                      className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                      alt={photo.guestName ? `Foto de ${photo.guestName}` : "Foto do evento"}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full backdrop-blur-xs flex items-center gap-1 group-hover:opacity-0 transition-opacity">
-                      <Video className="w-3 h-3 text-[#ebca90]" />
-                      <span>Vídeo</span>
-                    </span>
-                  </div>
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={photo.url}
-                    alt={photo.guestName ? `Foto de ${photo.guestName}` : "Foto do evento"}
-                    loading="lazy"
-                    className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                )}
+                  )}
 
-                {/* Double Tap Floating Heart Animation */}
-                {animatingHeartPhotoId === photo.id && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                    <div className="animate-ping duration-700">
-                      <Heart className="w-16 h-16 text-rose-500 fill-rose-500 drop-shadow-xl" />
+                  {/* Double Tap Floating Heart Animation */}
+                  {animatingHeartPhotoId === photo.id && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                      <div className="animate-ping duration-700">
+                        <Heart className="w-14 h-14 text-rose-500 fill-rose-500 drop-shadow-xl" />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Table badge pill */}
-                {photo.tableIdentifier && (
-                  <span className="absolute top-2 left-2 text-[10px] uppercase tracking-wider font-semibold bg-[#5a6248]/85 text-[#fbead6] px-2 py-0.5 rounded-full backdrop-blur-xs shadow-xs">
-                    {photo.tableIdentifier}
-                  </span>
-                )}
+                  {/* Table Identifier (bottom-left) */}
+                  {photo.tableIdentifier && (
+                    <span className="absolute bottom-1.5 left-1.5 z-10 text-[9px] uppercase tracking-wider font-semibold bg-black/65 text-white px-1.5 py-0.5 rounded-md backdrop-blur-xs shadow-xs max-w-[70px] truncate pointer-events-none">
+                      {photo.tableIdentifier}
+                    </span>
+                  )}
 
-                {/* Quest badge pill */}
-                {photo.questTitle && (
-                  <span className="absolute bottom-2 left-2 max-w-[85%] truncate text-[10px] font-medium bg-[#cb7d87]/90 text-white px-2 py-0.5 rounded-full backdrop-blur-xs shadow-xs flex items-center gap-1 z-10">
-                    <span>🎯</span>
-                    <span className="truncate">{photo.questTitle}</span>
-                  </span>
-                )}
+                  {/* Likes Count (bottom-right if > 0) */}
+                  {(photo.likeCount || 0) > 0 && (
+                    <span className="absolute bottom-1.5 right-1.5 z-10 flex items-center gap-1 text-[10px] font-semibold bg-black/60 text-white px-1.5 py-0.5 rounded-md backdrop-blur-xs shadow-xs pointer-events-none">
+                      <Heart
+                        className={`w-2.5 h-2.5 ${
+                          photo.hasLiked ? "text-rose-500 fill-rose-500" : "text-rose-400 fill-rose-400"
+                        }`}
+                      />
+                      <span>{photo.likeCount}</span>
+                    </span>
+                  )}
 
-                {/* Top action buttons */}
-                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  {/* Owner Delete Button on hover */}
                   {canDeletePhoto(photo) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setPhotoToDelete(photo);
                       }}
-                      aria-label="Apagar minha foto"
-                      title="Apagar minha foto"
-                      className="p-1.5 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white shadow-xs backdrop-blur-xs transition-colors active:scale-95"
+                      aria-label="Apagar foto"
+                      title="Apagar foto"
+                      className="absolute top-1.5 left-1.5 z-25 p-1 rounded-full bg-rose-600 text-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity active:scale-95"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   )}
-                  <button
-                    onClick={(e) => handleDownload(photo, e)}
-                    aria-label="Baixar foto"
-                    className="p-1.5 rounded-full bg-black/50 text-white hover:bg-[#cb7d87] shadow-xs backdrop-blur-xs transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
                 </div>
-              </div>
-
-              {/* Card Footer: Dedication and Instagram Actions Bar */}
-              <div className="p-3 border-t border-[#cb7d87]/15 bg-[#fffaf5]">
-                {(photo.guestName || photo.message) && (
-                  <div className="mb-2">
-                    {photo.guestName && (
-                      <p className="text-xs font-semibold text-[#cb7d87] truncate">
-                        {photo.guestName}
-                      </p>
-                    )}
-                    {photo.message && (
-                      <p className="text-[11px] text-[#49503b] italic mt-0.5 line-clamp-2 leading-relaxed">
-                        &ldquo;{photo.message}&rdquo;
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Instagram Action Buttons Bar (Like & Comment) */}
-                <div className="flex items-center justify-between pt-1 border-t border-[#cb7d87]/10 text-xs">
-                  <div className="flex items-center gap-3">
-                    {/* Like button */}
-                    <button
-                      onClick={(e) => handleLikeToggle(photo, e)}
-                      className="flex items-center gap-1 text-[#5a6248] hover:text-rose-500 transition-colors active:scale-125"
-                      title={photo.hasLiked ? "Descurtir" : "Curtir"}
-                    >
-                      <Heart
-                        className={`w-4 h-4 transition-colors ${
-                          photo.hasLiked
-                            ? "text-rose-500 fill-rose-500"
-                            : "text-[#5a6248] group-hover:text-[#cb7d87]"
-                        }`}
-                      />
-                      <span className="font-semibold text-[11px] text-[#5a6248]">
-                        {photo.likeCount || 0}
-                      </span>
-                    </button>
-
-                    {/* Comment button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActivePhoto(photo);
-                      }}
-                      className="flex items-center gap-1 text-[#5a6248] hover:text-[#cb7d87] transition-colors"
-                      title="Comentários"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 text-[#5a6248]" />
-                      <span className="font-semibold text-[11px] text-[#5a6248]">
-                        {photo.commentCount || 0}
-                      </span>
-                    </button>
-                  </div>
-
-                  <span className="text-[10px] text-[#7c8764]">
-                    {formatTimeAgo(photo.createdAt)}
-                  </span>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {/* Photos Count Footer */}
+          <div className="py-8 text-center select-none">
+            <p className="text-xs font-semibold text-gray-700 tracking-wide">
+              {sortedPhotos.length} {sortedPhotos.length === 1 ? "Momento Compartilhado" : "Momentos Compartilhados"}
+            </p>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {sortedPhotos.filter((p) => p.mediaType !== "video").length} fotos
+              {sortedPhotos.filter((p) => p.mediaType === "video").length > 0 &&
+                ` • ${sortedPhotos.filter((p) => p.mediaType === "video").length} vídeos`}
+            </p>
+          </div>
         </div>
       )}
-    </>
-  )}
+
+      {/* 3. QUESTS VIEW */}
+      {mainTab === "quests" && (
+        <div className="w-full max-w-md sm:max-w-3xl md:max-w-4xl lg:max-w-5xl mx-auto pb-28 px-0 sm:px-4">
+          <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 py-3 sm:py-4 px-4 sm:px-2 flex items-center justify-between mb-4 sm:mb-6">
+            <button
+              onClick={() => setMainTab("hub")}
+              className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 text-gray-900 transition-colors cursor-pointer"
+              title="Voltar ao início"
+              aria-label="Voltar ao início"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <span className="font-bold text-base sm:text-lg md:text-xl tracking-tight text-gray-900">
+              Desafios da Noite
+            </span>
+            <div className="w-8" />
+          </div>
+
+          <div className="px-4 sm:px-0">
+            <PhotoQuestsHub
+              slug={slug}
+              onFilterByQuest={(questTitle) => {
+                setSelectedQuestFilter(questTitle);
+                setSelectedCategory("quests");
+                setMainTab("gallery");
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 4. CHAT VIEW */}
+      {mainTab === "chat" && (
+        <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl mx-auto pb-28 px-0 sm:px-4">
+          <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 py-3 sm:py-4 px-4 sm:px-2 flex items-center justify-between mb-4 sm:mb-6">
+            <button
+              onClick={() => setMainTab("hub")}
+              className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 text-gray-900 transition-colors cursor-pointer"
+              title="Voltar ao início"
+              aria-label="Voltar ao início"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <span className="font-bold text-base sm:text-lg md:text-xl tracking-tight text-gray-900">
+              Mural de Recados
+            </span>
+            <div className="w-8" />
+          </div>
+
+          <div className="px-4 sm:px-0">
+            <EventChatView
+              slug={slug}
+              guestSessionId={guestSessionId}
+              guestName={guestName}
+              onChangeName={() => {
+                setNameInput(guestName);
+                setShowNameModal(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Instagram-Style Lightbox Modal */}
       {activePhoto && (
@@ -908,7 +1125,7 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative max-w-4xl w-full bg-[#fffaf5] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[92vh]"
+            className="relative max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[92vh]"
           >
             {/* Left Side: Photo/Video Display */}
             <div
@@ -932,6 +1149,35 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 />
               )}
 
+              {/* Prev / Next Photo Navigation Buttons */}
+              {prevPhoto && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePhoto(prevPhoto);
+                  }}
+                  className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-25 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs transition-all active:scale-90 cursor-pointer shadow-md"
+                  aria-label="Foto anterior"
+                  title="Foto anterior (←)"
+                >
+                  <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              )}
+
+              {nextPhoto && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePhoto(nextPhoto);
+                  }}
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-25 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs transition-all active:scale-90 cursor-pointer shadow-md"
+                  aria-label="Próxima foto"
+                  title="Próxima foto (→)"
+                >
+                  <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              )}
+
               {/* Heart Pop on double tap inside modal */}
               {animatingHeartPhotoId === activePhoto.id && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
@@ -942,13 +1188,18 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
               )}
             </div>
 
-            {/* Right Side: Instagram-like Header, Comments Feed, and Sticky Input */}
-            <div className="w-full md:w-[380px] lg:w-[420px] flex flex-col bg-[#fffaf5] border-t md:border-t-0 md:border-l border-[#cb7d87]/20 max-h-[45vh] md:max-h-[85vh]">
+            {/* Right Side: Header, Comments Feed, and Sticky Input */}
+            <div className="w-full md:w-[380px] lg:w-[420px] flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-100 max-h-[45vh] md:max-h-[85vh]">
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[#cb7d87]/15 bg-[#fffaf5]">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {activePhotoIndex >= 0 && (
+                    <span className="text-[11px] text-gray-500 font-medium hidden sm:inline mr-1">
+                      {activePhotoIndex + 1} de {sortedPhotos.length}
+                    </span>
+                  )}
                   {activePhoto.tableIdentifier && (
-                    <span className="text-[11px] font-semibold bg-[#5a6248] text-[#fbead6] px-2.5 py-0.5 rounded-full">
+                    <span className="text-[11px] font-semibold bg-gray-900 text-white px-2.5 py-0.5 rounded-full">
                       {activePhoto.tableIdentifier}
                     </span>
                   )}
@@ -958,8 +1209,16 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                       <span className="truncate max-w-[130px]">{activePhoto.questTitle}</span>
                     </span>
                   )}
+                  {activePhoto.moment && (
+                    <span className="text-[11px] font-medium bg-rose-50 text-[#832d3b] px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-[#cb7d87]/30">
+                      <span>{moments.find((m) => m.id === activePhoto.moment)?.icon || "✨"}</span>
+                      <span className="truncate max-w-[120px]">
+                        {moments.find((m) => m.id === activePhoto.moment)?.name || activePhoto.moment}
+                      </span>
+                    </span>
+                  )}
                   {activePhoto.guestName && (
-                    <span className="text-xs font-serif font-medium text-[#cb7d87] truncate max-w-[140px]">
+                    <span className="text-xs font-semibold text-[#cb7d87] truncate max-w-[140px]">
                       Por {activePhoto.guestName}
                     </span>
                   )}
@@ -969,7 +1228,7 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                   {canDeletePhoto(activePhoto) && (
                     <button
                       onClick={() => setPhotoToDelete(activePhoto)}
-                      className="p-1.5 text-rose-600 hover:text-rose-700 rounded-full hover:bg-rose-100/60 transition-colors flex items-center gap-1 text-xs font-medium"
+                      className="p-1.5 text-rose-600 hover:text-rose-700 rounded-full hover:bg-rose-50 transition-colors flex items-center gap-1 text-xs font-medium"
                       title="Apagar minha foto"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -978,14 +1237,14 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                   )}
                   <button
                     onClick={() => handleDownload(activePhoto)}
-                    className="p-1.5 text-[#5a6248] hover:text-[#cb7d87] rounded-full hover:bg-[#fbead6]/50 transition-colors"
+                    className="p-1.5 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
                     title="Baixar foto"
                   >
                     <Download className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setActivePhoto(null)}
-                    className="p-1.5 text-[#5a6248] hover:text-[#cb7d87] rounded-full hover:bg-[#fbead6]/50 transition-colors"
+                    className="p-1.5 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
                     aria-label="Fechar"
                   >
                     <X className="w-5 h-5" />
@@ -993,54 +1252,45 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 </div>
               </div>
 
-              {/* Scrollable Comments and Dedication Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-[#cb7d87]/10 text-xs">
-                {/* Original Photo Dedication (if present) */}
+              {/* Scrollable Comments Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-gray-100 text-xs">
                 {activePhoto.message && (
-                  <div className="pb-3 bg-[#fbead6]/30 p-3 rounded-2xl border border-[#cb7d87]/15">
-                    <p className="text-[11px] font-semibold text-[#cb7d87] mb-0.5">
-                      {activePhoto.guestName || "Autor da Foto"}
+                  <div className="pb-3">
+                    <p className="font-semibold text-gray-900 text-xs flex items-center gap-1.5">
+                      <span>{activePhoto.guestName || "Convidado"}</span>
+                      <span className="text-[10px] text-gray-400 font-normal">
+                        {formatPhotoTime(activePhoto.createdAt)}
+                      </span>
                     </p>
-                    <p className="font-serif text-sm text-[#5a6248] italic leading-relaxed">
-                      &ldquo;{activePhoto.message}&rdquo;
+                    <p className="text-gray-700 mt-1 leading-relaxed text-sm">
+                      {activePhoto.message}
                     </p>
                   </div>
                 )}
 
-                {/* Comments List */}
                 {isLoadingComments ? (
-                  <div className="py-8 text-center text-[#7c8764]">
-                    <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-[#cb7d87]" />
-                    <span>Carregando comentários...</span>
+                  <div className="py-6 text-center text-gray-400 text-xs">
+                    Carregando comentários...
                   </div>
-                ) : comments.length === 0 ? (
-                  <div className="py-8 text-center text-[#7c8764]">
-                    <MessageSquare className="w-5 h-5 mx-auto mb-1 text-[#cb7d87]/60" />
-                    <p className="font-medium text-xs text-[#5a6248]">Nenhum comentário ainda</p>
-                    <p className="text-[11px] mt-0.5">Seja o primeiro a deixar uma mensagem!</p>
+                ) : comments.length === 0 && !activePhoto.message ? (
+                  <div className="py-6 text-center text-gray-400 text-xs">
+                    Nenhum comentário ainda. Seja o primeiro a comentar!
                   </div>
                 ) : (
                   comments.map((comment) => (
-                    <div key={comment.id} className="pt-3 group flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-[#5a6248]">
-                            {comment.guestName}
-                          </span>
-                          <span className="text-[10px] text-[#7c8764]">
-                            {formatTimeAgo(comment.createdAt)}
-                          </span>
-                        </div>
-                        <p className="text-[#353b2a] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
+                    <div key={comment.id} className="pt-2.5 flex items-start justify-between gap-2 group">
+                      <div>
+                        <span className="font-semibold text-gray-900 text-xs mr-2">
+                          {comment.guestName}
+                        </span>
+                        <span className="text-gray-700 leading-relaxed text-xs">
                           {comment.content}
-                        </p>
+                        </span>
                       </div>
-
-                      {/* Delete comment button (if author or host) */}
                       {comment.canDelete && (
                         <button
                           onClick={() => handleDeleteComment(comment.id)}
-                          className="text-[#7c8764] hover:text-rose-600 p-1 opacity-60 group-hover:opacity-100 transition-opacity"
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 p-1 transition-opacity cursor-pointer shrink-0"
                           title="Apagar comentário"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1052,57 +1302,41 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
                 <div ref={commentsEndRef} />
               </div>
 
-              {/* Action Bar: Heart, Like Count, Time */}
-              <div className="px-4 py-2.5 border-t border-[#cb7d87]/15 bg-[#fffaf5]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleLikeToggle(activePhoto)}
-                      className="flex items-center gap-1.5 p-1 -ml-1 text-[#5a6248] hover:text-rose-500 transition-colors active:scale-125"
-                    >
-                      <Heart
-                        className={`w-5 h-5 ${
-                          activePhoto.hasLiked
-                            ? "text-rose-500 fill-rose-500"
-                            : "text-[#5a6248]"
-                        }`}
-                      />
-                      <span className="font-semibold text-xs text-[#5a6248]">
-                        {activePhoto.likeCount || 0} {activePhoto.likeCount === 1 ? "curtida" : "curtidas"}
-                      </span>
-                    </button>
-                  </div>
-
-                  <span className="text-[11px] text-[#7c8764]">
-                    {formatTimeAgo(activePhoto.createdAt)}
+              {/* Action Bar (Like count & button) */}
+              <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <button
+                  onClick={() => handleLikeToggle(activePhoto)}
+                  className="flex items-center gap-2 text-gray-700 hover:text-[#cb7d87] transition-colors cursor-pointer"
+                >
+                  <Heart
+                    className={`w-5 h-5 ${
+                      activePhoto.hasLiked
+                        ? "text-rose-500 fill-rose-500"
+                        : "text-gray-600 hover:text-rose-500"
+                    }`}
+                  />
+                  <span className="text-xs font-semibold">
+                    {activePhoto.likeCount || 0}{" "}
+                    {(activePhoto.likeCount || 0) === 1 ? "curtida" : "curtidas"}
                   </span>
-                </div>
+                </button>
               </div>
 
-              {/* Sticky Input Bar */}
-              <form
-                onSubmit={handleCommentSubmit}
-                className="p-3 border-t border-[#cb7d87]/15 bg-[#fffaf5] flex items-center gap-2"
-              >
+              {/* Comment Input */}
+              <form onSubmit={handleCommentSubmit} className="p-3 border-t border-gray-100 flex items-center gap-2 bg-white">
                 <input
                   type="text"
                   value={newCommentText}
                   onChange={(e) => setNewCommentText(e.target.value)}
-                  placeholder={
-                    guestName
-                      ? `Comentar como ${guestName}...`
-                      : "Adicione um comentário..."
-                  }
-                  maxLength={500}
-                  className="flex-1 px-3.5 py-2 text-xs bg-white border border-[#cb7d87]/25 rounded-full text-[#353b2a] placeholder-[#7c8764]/70 focus:outline-none focus:ring-1 focus:ring-[#cb7d87]"
+                  placeholder="Adicione um comentário..."
+                  className="flex-1 text-xs px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:border-[#cb7d87] focus:bg-white text-gray-900"
                 />
                 <button
                   type="submit"
                   disabled={!newCommentText.trim() || isSubmittingComment}
-                  className="p-2 bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-40 text-white rounded-full transition-all active:scale-95 shadow-xs"
-                  aria-label="Publicar comentário"
+                  className="p-2 bg-[#cb7d87] hover:bg-[#b86a76] text-white rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4" />
                 </button>
               </form>
             </div>
@@ -1110,130 +1344,70 @@ export function LiveGalleryView({ slug, initialPhotos = [] }: LiveGalleryViewPro
         </div>
       )}
 
-      {/* Guest Name Modal (Framework-native dialog) */}
-      {showNameModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
-            <div className="w-12 h-12 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] mx-auto mb-3">
-              <User className="w-6 h-6" />
-            </div>
-            <h3 className="font-serif text-xl text-center text-[#5a6248] mb-1">
-              Como quer ser chamado?
-            </h3>
-            <p className="text-xs text-center text-[#7c8764] mb-4">
-              Seu nome aparecerá nos comentários e fotos que você compartilhar nesta festa.
-            </p>
-
-            <form onSubmit={handleSaveName} className="space-y-3">
-              <input
-                type="text"
-                autoFocus
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Seu nome (ex: Ana, Tio Carlos)"
-                maxLength={60}
-                className="w-full px-4 py-2.5 text-xs bg-white border border-[#cb7d87]/30 rounded-xl text-[#353b2a] focus:outline-none focus:ring-2 focus:ring-[#cb7d87]"
-              />
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNameModal(false);
-                    if (pendingCommentText && activePhoto) {
-                      postComment(activePhoto.id, pendingCommentText, "Convidado Anônimo");
-                      setPendingCommentText("");
-                    }
-                  }}
-                  className="flex-1 py-2 text-xs font-medium text-[#7c8764] hover:bg-[#fbead6]/50 rounded-xl transition-colors"
-                >
-                  Continuar Anônimo
-                </button>
-                <button
-                  type="submit"
-                  disabled={!nameInput.trim()}
-                  className="flex-1 py-2 text-xs font-medium bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-40 text-white rounded-xl transition-all shadow-xs"
-                >
-                  Salvar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Photo Delete Confirmation Modal (Framework-native, no window.confirm) */}
+      {/* Delete Photo Confirmation Dialog */}
       {photoToDelete && (
-        <div
-          onClick={() => {
-            if (!isDeletingPhoto) {
-              setPhotoToDelete(null);
-              setDeletePhotoError(null);
-            }
-          }}
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center"
-          >
-            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
-              <Trash2 className="w-6 h-6" />
-            </div>
-
-            <h3 className="font-serif text-xl text-[#5a6248] font-medium mb-1">
-              Apagar Foto?
-            </h3>
-
-            <p className="text-xs text-[#7c8764] leading-relaxed mb-3">
-              Tem certeza que deseja apagar esta foto? Ela será excluída permanentemente da galeria e do telão do evento.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center">
+            <h4 className="text-lg font-bold text-gray-900">Apagar Foto?</h4>
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+              Esta ação removerá a foto permanentemente da galeria do evento.
             </p>
-
-            {/* Thumbnail preview */}
-            <div className="my-3 mx-auto w-24 h-24 rounded-2xl overflow-hidden border border-[#cb7d87]/20 shadow-inner bg-[#fbead6]/40 flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photoToDelete.url}
-                alt="Prévia"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
             {deletePhotoError && (
-              <div className="mb-3 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs text-left flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                <span>{deletePhotoError}</span>
-              </div>
+              <p className="text-xs text-rose-600 mt-2 font-medium">{deletePhotoError}</p>
             )}
-
-            <div className="flex gap-2 pt-1">
+            <div className="flex items-center gap-3 mt-5">
               <button
-                type="button"
-                disabled={isDeletingPhoto}
-                onClick={() => {
-                  setPhotoToDelete(null);
-                  setDeletePhotoError(null);
-                }}
-                className="flex-1 py-2 text-xs font-medium text-[#7c8764] hover:bg-[#fbead6]/50 rounded-xl transition-colors disabled:opacity-50"
+                onClick={() => setPhotoToDelete(null)}
+                className="flex-1 py-2.5 rounded-full border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50"
               >
                 Cancelar
               </button>
               <button
-                type="button"
-                disabled={isDeletingPhoto}
                 onClick={handleConfirmDeletePhoto}
-                className="flex-1 py-2 text-xs font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+                disabled={isDeletingPhoto}
+                className="flex-1 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold disabled:opacity-50"
               >
-                {isDeletingPhoto ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Apagando...</span>
-                  </>
-                ) : (
-                  <span>Sim, Apagar</span>
-                )}
+                {isDeletingPhoto ? "Apagando..." : "Sim, apagar"}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Save Guest Name Modal for comments */}
+      {showNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <form onSubmit={handleSaveName} className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-left">
+            <h4 className="text-base font-bold text-gray-900">Como podemos te chamar?</h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Informe seu nome para que os noivos saibam quem comentou!
+            </p>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Ex: Tio Pedro ou Sarah"
+              autoFocus
+              maxLength={60}
+              className="w-full px-4 py-2.5 mt-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] text-sm text-gray-900"
+            />
+            <div className="flex items-center gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowNameModal(false)}
+                className="flex-1 py-2.5 rounded-full border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={!nameInput.trim()}
+                className="flex-1 py-2.5 rounded-full bg-[#cb7d87] hover:bg-[#b86a76] text-white text-xs font-semibold disabled:opacity-50"
+              >
+                Continuar
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

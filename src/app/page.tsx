@@ -61,7 +61,7 @@ export default async function HomePage() {
                 <span>Entrar na Galeria</span>
               </Link>
               <Link
-                href={`/e/${flagship.slug}/admin?key=${flagship.hostKey}`}
+                href="/admin"
                 className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#fffaf5] hover:bg-[#fbead6] text-[#5a6248] border border-[#5a6248]/30 px-5 py-3 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-200"
               >
                 <span>Painel do Anfitrião</span>

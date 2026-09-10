@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { events, photos, tables, photoComments } from "@/db/schema";
 import { eq, and, gt, desc, sql, inArray } from "drizzle-orm";
+import { parseMomentsConfig } from "@/lib/moments";
 
 export async function GET(
   request: NextRequest,
@@ -16,11 +17,12 @@ export async function GET(
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
 
-    // Check host key
+    // Check host key or admin session
     const authHeader = request.headers.get("authorization");
     const keyParam = searchParams.get("key");
     const providedKey = authHeader?.replace(/^Bearer\s+/i, "") || keyParam;
-    const isHost = providedKey === event.hostKey;
+    const token = request.cookies.get("photo_party_admin_session")?.value;
+    const isHost = (providedKey && providedKey === event.hostKey) || Boolean(token);
 
     const guestSessionId =
       request.headers.get("x-guest-session-id") ||
@@ -60,6 +62,7 @@ export async function GET(
         questId: photos.questId,
         questTitle: photos.questTitle,
         mediaType: photos.mediaType,
+        moment: photos.moment,
         guestSessionId: photos.guestSessionId,
         likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
         commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
@@ -122,6 +125,7 @@ export async function GET(
         slug: event.slug,
         isUploadClosed: event.isUploadClosed,
         uploadDeadline: event.uploadDeadline,
+        momentsConfig: parseMomentsConfig(event.momentsConfig),
       },
     });
   } catch (error) {

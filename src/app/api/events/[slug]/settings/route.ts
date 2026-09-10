@@ -3,7 +3,12 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+import { ADMIN_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+
 function verifyHostKey(request: NextRequest, hostKey: string): boolean {
+  const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  if (token && verifySessionToken(token)) return true;
+
   const authHeader = request.headers.get("authorization");
   const url = new URL(request.url);
   const keyParam = url.searchParams.get("key");
@@ -28,7 +33,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { isUploadClosed, uploadDeadline, moderationPolicy, title } = body;
+    const { isUploadClosed, uploadDeadline, moderationPolicy, title, momentsConfig } = body;
 
     const updateData: Partial<typeof events.$inferInsert> = {};
 
@@ -46,6 +51,14 @@ export async function PATCH(
 
     if (typeof title === "string" && title.trim()) {
       updateData.title = title.trim();
+    }
+
+    if (momentsConfig !== undefined) {
+      if (Array.isArray(momentsConfig)) {
+        updateData.momentsConfig = JSON.stringify(momentsConfig);
+      } else if (typeof momentsConfig === "string") {
+        updateData.momentsConfig = momentsConfig;
+      }
     }
 
     await db.update(events).set(updateData).where(eq(events.id, event.id));

@@ -14,6 +14,7 @@ export const events = pgTable("events", {
   isUploadClosed: boolean("is_upload_closed")
     .notNull()
     .default(false),
+  momentsConfig: text("moments_config"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 });
 
@@ -62,6 +63,7 @@ export const photos = pgTable("photos", {
   })
     .notNull()
     .default("approved"),
+  moment: text("moment"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
 });
 

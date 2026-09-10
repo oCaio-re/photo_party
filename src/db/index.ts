@@ -86,6 +86,8 @@ export async function ensureSchema(): Promise<void> {
       await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS quest_id TEXT`;
       await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS quest_title TEXT`;
       await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS media_type TEXT NOT NULL DEFAULT 'photo'`;
+      await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS moment TEXT`;
+      await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS moments_config TEXT`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS photo_likes (

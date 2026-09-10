@@ -38,6 +38,8 @@ export async function POST(
     const tableId = formData.get("tableId") as string | null;
     const guestName = formData.get("guestName") as string | null;
     const message = formData.get("message") as string | null;
+    const rawMoment = formData.get("moment") as string | null;
+    const moment = typeof rawMoment === "string" && rawMoment.trim() ? rawMoment.trim().slice(0, 50) : null;
     const rawSessionId =
       (formData.get("guestSessionId") as string | null) ||
       request.headers.get("x-guest-session-id") ||
@@ -121,6 +123,7 @@ export async function POST(
       guestSessionId,
       message: message ? message.trim().slice(0, 500) : null,
       mediaType,
+      moment,
       storagePath,
       url,
       status: initialStatus,
@@ -136,6 +139,7 @@ export async function POST(
         guestName,
         message,
         mediaType,
+        moment,
         questId: validQuestId,
         questTitle: validQuestTitle,
         canDelete: true,

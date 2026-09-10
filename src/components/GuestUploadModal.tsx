@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle, HelpCircle, Video } from "lucide-react";
+import { Camera, ImageIcon, X, Send, Sparkles, CheckCircle2, AlertCircle, Video } from "lucide-react";
 import { compressImage } from "@/lib/client-compress";
-import { openHowItWorksGuide } from "@/components/HowItWorksModal";
+import {
+  WeddingMomentConfig,
+  DEFAULT_WEDDING_MOMENTS,
+  getCurrentActiveMomentId,
+} from "@/lib/moments";
 
 function getVideoDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -28,6 +32,7 @@ interface GuestUploadModalProps {
   tableName?: string;
   onUploadComplete?: () => void;
   isUploadClosed?: boolean;
+  momentsConfig?: WeddingMomentConfig[];
 }
 
 export function GuestUploadModal({
@@ -36,6 +41,7 @@ export function GuestUploadModal({
   tableName,
   onUploadComplete,
   isUploadClosed = false,
+  momentsConfig = DEFAULT_WEDDING_MOMENTS,
 }: GuestUploadModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -69,6 +75,9 @@ export function GuestUploadModal({
   const [quests, setQuests] = useState<Array<{ id: string; title: string; icon: string | null }>>([]);
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
 
+  const moments = momentsConfig && momentsConfig.length > 0 ? momentsConfig : DEFAULT_WEDDING_MOMENTS;
+  const [selectedMoment, setSelectedMoment] = useState<string>(() => getCurrentActiveMomentId(moments));
+
   // Fetch available quests
   useEffect(() => {
     fetch(`/api/events/${slug}/quests`)
@@ -94,6 +103,19 @@ export function GuestUploadModal({
     return () => {
       window.removeEventListener("photo_party_fulfill_quest", handleQuestEvent);
     };
+  }, []);
+
+  // Listen for open-upload-modal custom event from gallery header or moment teasers
+  useEffect(() => {
+    const handleOpen = (e: Event) => {
+      const ce = e as CustomEvent<{ moment?: string }>;
+      if (ce.detail?.moment) {
+        setSelectedMoment(ce.detail.moment);
+      }
+      setIsOpen(true);
+    };
+    window.addEventListener("open-upload-modal", handleOpen);
+    return () => window.removeEventListener("open-upload-modal", handleOpen);
   }, []);
 
   // Pre-fill name from localStorage if previously stored
@@ -264,6 +286,7 @@ export function GuestUploadModal({
       formData.append("guestSessionId", sId);
       if (tableId) formData.append("tableId", tableId);
       if (selectedQuestId) formData.append("questId", selectedQuestId);
+      if (selectedMoment) formData.append("moment", selectedMoment);
       if (guestName.trim()) formData.append("guestName", guestName.trim());
       if (message.trim()) formData.append("message", message.trim());
 
@@ -326,19 +349,12 @@ export function GuestUploadModal({
   };
 
   if (isUploadClosed) {
-    return (
-      <div className="bg-[#fffaf5] border border-[#cb7d87]/30 text-[#832d3b] rounded-2xl p-4 text-center max-w-md mx-auto shadow-sm">
-        <p className="font-serif text-lg font-medium">Envios Encerrados</p>
-        <p className="text-xs text-[#5a6248] mt-1">
-          O anfitrião encerrou novos envios. Você ainda pode baixar e ver todas as fotos na galeria abaixo!
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (
     <>
-      {/* Hidden Camera Input (forces camera viewfinder on mobile) */}
+      {/* Hidden Camera Input (prompts native camera) */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -349,7 +365,7 @@ export function GuestUploadModal({
         aria-label="Tirar foto com a câmera"
       />
 
-      {/* Hidden Video Input (forces video camera on mobile, up to 15s) */}
+      {/* Hidden Video Input (records short video clip) */}
       <input
         ref={videoInputRef}
         type="file"
@@ -370,61 +386,30 @@ export function GuestUploadModal({
         aria-label="Escolher foto ou vídeo da galeria"
       />
 
-      {/* Elegant Floating / Main Action Buttons */}
-      <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center items-center gap-2 px-3 sm:gap-2.5 sm:px-4 pointer-events-none">
-        {/* Primary Action: Tirar Foto (Direct Camera) */}
-        <button
-          type="button"
-          onClick={() => cameraInputRef.current?.click()}
-          className="pointer-events-auto flex items-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-[#fffaf5] px-4 sm:px-5 py-3.5 rounded-full shadow-[0_10px_25px_rgba(203,125,135,0.45)] transition-all duration-200 border border-[#fffaf5]/40 font-serif text-sm sm:text-base tracking-wide cursor-pointer"
-        >
-          <Camera className="w-5 h-5 text-[#ebca90]" />
-          <span>Tirar Foto</span>
-          {tableName && (
-            <span className="text-[11px] bg-[#5a6248] text-[#fbead6] px-2 py-0.5 rounded-full font-sans tracking-normal ml-0.5">
-              {tableName}
-            </span>
-          )}
-        </button>
-
-        {/* Video Action: Gravar Vídeo (até 15s) */}
-        <button
-          type="button"
-          onClick={() => videoInputRef.current?.click()}
-          className="pointer-events-auto flex items-center gap-1.5 bg-[#832d3b] hover:bg-[#722633] active:scale-95 text-[#fffaf5] px-3.5 sm:px-4 py-3.5 rounded-full shadow-[0_10px_25px_rgba(131,45,59,0.35)] transition-all duration-200 border border-[#fffaf5]/30 font-serif text-sm sm:text-base tracking-wide cursor-pointer"
-          title="Gravar vídeo curto (até 15s)"
-        >
-          <Video className="w-4 h-4 text-[#ebca90]" />
-          <span className="hidden xs:inline">Vídeo (15s)</span>
-        </button>
-
-        {/* Secondary Action: Galeria (Choose from files / gallery) */}
-        <button
-          type="button"
-          onClick={() => galleryInputRef.current?.click()}
-          className="pointer-events-auto flex items-center gap-1.5 bg-[#5a6248] hover:bg-[#49503b] active:scale-95 text-[#fbead6] px-3.5 sm:px-4 py-3.5 rounded-full shadow-[0_10px_25px_rgba(90,98,72,0.35)] transition-all duration-200 border border-[#fffaf5]/30 font-serif text-sm sm:text-base tracking-wide cursor-pointer"
-          title="Escolher foto ou vídeo salvo no aparelho"
-        >
-          <ImageIcon className="w-4 h-4 text-[#ebca90]" />
-          <span className="hidden sm:inline">Galeria</span>
-        </button>
-
-        {/* Help / How It Works Button */}
-        <button
-          type="button"
-          onClick={openHowItWorksGuide}
-          className="pointer-events-auto flex items-center justify-center w-12 h-12 bg-[#fffaf5] hover:bg-[#fbead6] active:scale-95 text-[#5a6248] hover:text-[#cb7d87] rounded-full shadow-[0_6px_20px_rgba(90,98,72,0.22)] transition-all duration-200 border border-[#cb7d87]/35"
-          title="Como funciona a plataforma?"
-          aria-label="Como funciona?"
-        >
-          <HelpCircle className="w-6 h-6 text-[#cb7d87]" />
-        </button>
-      </div>
+      {/* Centered Floating Upload Pill Button (matching exemplo_nova_UI.jpeg) */}
+      {!isUploadClosed && (
+        <div className="fixed bottom-6 inset-x-0 z-40 flex items-center justify-center pointer-events-none px-4">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="pointer-events-auto flex items-center gap-2 bg-[#007aff] hover:bg-[#0062cc] active:scale-95 text-white px-7 py-3.5 rounded-full shadow-[0_10px_25px_rgba(0,122,255,0.4)] transition-all duration-200 font-semibold text-sm sm:text-base tracking-wide cursor-pointer border border-white/20"
+            title="Enviar foto ou vídeo"
+          >
+            <Camera className="w-5 h-5 text-white" />
+            <span>Upload</span>
+            {tableName && (
+              <span className="text-[11px] bg-black/25 text-white px-2 py-0.5 rounded-full ml-0.5">
+                {tableName}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Upload Modal */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-[#49503b]/60 backdrop-blur-sm overscroll-contain animate-fade-in"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm overscroll-contain animate-fade-in"
           style={{ WebkitOverflowScrolling: "touch" }}
           onClick={() => {
             resetForm();
@@ -434,295 +419,341 @@ export function GuestUploadModal({
           <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
             <div
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl max-w-lg w-full shadow-2xl p-6 relative text-[#49503b] my-8 text-left"
+              className="bg-white border border-gray-100 rounded-3xl max-w-lg w-full shadow-2xl p-6 relative text-gray-900 my-8 text-left"
             >
-            <button
-              onClick={() => {
-                resetForm();
-                setIsOpen(false);
-              }}
-              className="absolute top-4 right-4 p-2 text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6] rounded-full transition-colors"
-              aria-label="Fechar"
-            >
-              <X className="w-5 h-5" />
-            </button>
+              <button
+                onClick={() => {
+                  resetForm();
+                  setIsOpen(false);
+                }}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            <div className="text-center mb-5">
-              <span className="text-xs uppercase tracking-[0.2em] text-[#cb7d87] font-semibold">Recordações ao Vivo</span>
-              <h3 className="font-serif text-2xl text-[#5a6248] mt-1">Compartilhe um Momento</h3>
-              {tableName && (
-                <p className="text-xs text-[#7c8764] mt-0.5">
-                  Enviando da <strong className="text-[#cb7d87]">{tableName}</strong>
-                </p>
-              )}
-            </div>
+              <div className="text-center mb-5">
+                <span className="text-xs uppercase tracking-wider text-[#cb7d87] font-semibold">
+                  Recordações ao Vivo
+                </span>
+                <h3 className="text-2xl text-gray-900 font-bold mt-1">
+                  Compartilhe um Momento
+                </h3>
+                {tableName && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Enviando da <strong className="text-[#cb7d87]">{tableName}</strong>
+                  </p>
+                )}
+              </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Image / Video Picker / Preview Area */}
-              {!displayPreviewUrl ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* Option 1: Live Camera */}
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="border-2 border-dashed border-[#cb7d87]/50 hover:border-[#cb7d87] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform mb-2">
-                      <Camera className="w-6 h-6" />
-                    </div>
-                    <p className="font-serif text-sm sm:text-base font-semibold text-[#5a6248]">Tirar Foto</p>
-                    <p className="text-[10px] sm:text-[11px] text-[#7c8764] mt-0.5">Câmera fotográfica</p>
-                  </button>
-
-                  {/* Option 2: Short Video (up to 15s) */}
-                  <button
-                    type="button"
-                    onClick={() => videoInputRef.current?.click()}
-                    className="border-2 border-dashed border-[#832d3b]/45 hover:border-[#832d3b] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#832d3b]/15 flex items-center justify-center text-[#832d3b] group-hover:scale-110 transition-transform mb-2">
-                      <Video className="w-6 h-6" />
-                    </div>
-                    <p className="font-serif text-sm sm:text-base font-semibold text-[#832d3b]">Gravar Vídeo</p>
-                    <p className="text-[10px] sm:text-[11px] text-[#7c8764] mt-0.5">Clipe até 15s</p>
-                  </button>
-
-                  {/* Option 3: Gallery Picker */}
-                  <button
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="border-2 border-dashed border-[#5a6248]/40 hover:border-[#5a6248] bg-[#fbead6]/30 hover:bg-[#fbead6]/60 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#5a6248]/15 flex items-center justify-center text-[#5a6248] group-hover:scale-110 transition-transform mb-2">
-                      <ImageIcon className="w-6 h-6" />
-                    </div>
-                    <p className="font-serif text-sm sm:text-base font-semibold text-[#5a6248]">Galeria</p>
-                    <p className="text-[10px] sm:text-[11px] text-[#7c8764] mt-0.5">Fotos ou vídeos</p>
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  <div className="relative rounded-2xl overflow-hidden border border-[#cb7d87]/20 bg-black/5">
-                    {isVideo ? (
-                      <video
-                        src={displayPreviewUrl || ""}
-                        controls
-                        autoPlay
-                        playsInline
-                        className="w-full max-h-64 object-contain bg-black"
-                      />
-                    ) : (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={displayPreviewUrl || ""}
-                        alt="Pré-visualização"
-                        className="w-full max-h-64 object-contain bg-[#fbead6]/20 transition-all duration-200"
-                      />
-                    )}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Image / Video Picker / Preview Area */}
+                {!displayPreviewUrl ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Option 1: Live Camera */}
                     <button
                       type="button"
-                      onClick={resetForm}
-                      className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors z-10 cursor-pointer"
-                      title="Remover mídia"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="border-2 border-dashed border-[#cb7d87]/40 hover:border-[#cb7d87] bg-rose-50/40 hover:bg-rose-50 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
                     >
-                      <X className="w-4 h-4" />
-                    </button>
-
-                    {/* Stats badge */}
-                    <div className="bg-[#5a6248] text-[#fbead6] text-[11px] px-3 py-1.5 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        {isVideo ? (
-                          <>
-                            <Video className="w-3.5 h-3.5 text-[#ebca90]" />
-                            <span>Clipe de Vídeo ({Math.round(videoDuration)}s)</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5 text-[#ebca90]" />
-                            {isCompressing
-                              ? "Otimizando foto..."
-                              : useVintagePreset
-                              ? "✨ Visual analógico aplicado"
-                              : "Foto original otimizada"}
-                          </>
-                        )}
-                      </span>
-                      {!isCompressing && (activeCompressedSize > 0 || originalFileSize > 0) && (
-                        <span className="opacity-90">
-                          {isVideo
-                            ? formatBytes(originalFileSize)
-                            : `${formatBytes(originalFileSize)} → ${formatBytes(activeCompressedSize)}`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Vintage Film Preset Toggle Pill (photos only) */}
-                  {!isVideo && (
-                    <div className="flex items-center justify-center pt-0.5">
-                      <div className="inline-flex items-center p-1 bg-[#fbead6]/80 rounded-full border border-[#cb7d87]/30 shadow-xs">
-                        <button
-                          type="button"
-                          onClick={() => setUseVintagePreset(true)}
-                          className={`flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs font-serif tracking-wide transition-all cursor-pointer ${
-                            useVintagePreset
-                              ? "bg-[#cb7d87] text-[#fffaf5] shadow-xs font-semibold"
-                              : "text-[#5a6248] hover:text-[#cb7d87]"
-                          }`}
-                        >
-                          <Sparkles className={`w-3.5 h-3.5 ${useVintagePreset ? "text-[#ebca90]" : "text-[#cb7d87]"}`} />
-                          <span>✨ Analógico Vintage</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUseVintagePreset(false)}
-                          className={`flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs font-serif tracking-wide transition-all cursor-pointer ${
-                            !useVintagePreset
-                              ? "bg-[#5a6248] text-[#fbead6] shadow-xs font-semibold"
-                              : "text-[#5a6248] hover:text-[#cb7d87]"
-                          }`}
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>Original</span>
-                        </button>
+                      <div className="w-12 h-12 rounded-full bg-rose-100/70 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform mb-2">
+                        <Camera className="w-6 h-6" />
                       </div>
-                    </div>
-                  )}
+                      <p className="text-sm sm:text-base font-semibold text-gray-900">Tirar Foto</p>
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Câmera fotográfica</p>
+                    </button>
 
-                  {/* Switch / Retake buttons */}
-                  <div className="flex items-center justify-center gap-4 text-xs text-[#7c8764] pt-0.5">
+                    {/* Option 2: Short Video (up to 15s) */}
                     <button
                       type="button"
-                      onClick={() => (isVideo ? videoInputRef.current?.click() : cameraInputRef.current?.click())}
-                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2 cursor-pointer"
+                      onClick={() => videoInputRef.current?.click()}
+                      className="border-2 border-dashed border-rose-300 hover:border-[#cb7d87] bg-rose-50/40 hover:bg-rose-50 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
                     >
-                      {isVideo ? <Video className="w-3.5 h-3.5" /> : <Camera className="w-3.5 h-3.5" />}
-                      <span>{isVideo ? "Gravar outro vídeo" : "Tirar outra foto"}</span>
+                      <div className="w-12 h-12 rounded-full bg-rose-100/70 flex items-center justify-center text-[#cb7d87] group-hover:scale-110 transition-transform mb-2">
+                        <Video className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm sm:text-base font-semibold text-gray-900">Gravar Vídeo</p>
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Clipe até 15s</p>
                     </button>
-                    <span>•</span>
+
+                    {/* Option 3: Gallery Picker */}
                     <button
                       type="button"
                       onClick={() => galleryInputRef.current?.click()}
-                      className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2 cursor-pointer"
+                      className="border-2 border-dashed border-gray-200 hover:border-[#cb7d87] bg-gray-50 hover:bg-gray-100 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-[0.98] text-center"
                     >
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      <span>Escolher outro da galeria</span>
+                      <div className="w-12 h-12 rounded-full bg-gray-200/80 flex items-center justify-center text-gray-700 group-hover:scale-110 transition-transform mb-2">
+                        <ImageIcon className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm sm:text-base font-semibold text-gray-900">Galeria</p>
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Fotos ou vídeos</p>
                     </button>
                   </div>
-                </div>
-              )}
-
-              {/* Guest Name input */}
-              <div>
-                <label className="block text-xs font-semibold text-[#5a6248] mb-1 uppercase tracking-wider">
-                  Seu Nome (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="Ex: Tio Pedro ou Sarah"
-                  maxLength={100}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#cb7d87]/30 bg-white focus:outline-none focus:border-[#cb7d87] focus:ring-1 focus:ring-[#cb7d87] text-sm text-[#49503b] placeholder:text-gray-400"
-                />
-              </div>
-
-              {/* Dedication / Message input */}
-              <div>
-                <label className="block text-xs font-semibold text-[#5a6248] mb-1 uppercase tracking-wider">
-                  Dedicatória ou Mensagem (opcional)
-                </label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Deixe uma mensagem para os anfitriões..."
-                  rows={2}
-                  maxLength={400}
-                  className="w-full px-4 py-2 rounded-xl border border-[#cb7d87]/30 bg-white focus:outline-none focus:border-[#cb7d87] focus:ring-1 focus:ring-[#cb7d87] text-sm text-[#49503b] placeholder:text-gray-400 resize-none"
-                />
-              </div>
-
-              {/* Photo Quest Selector */}
-              {quests.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-[#5a6248] uppercase tracking-wider">
-                      🎯 Desafio da Festa (opcional)
-                    </label>
-                    {selectedQuestId && (
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black/5">
+                      {isVideo ? (
+                        <video
+                          src={displayPreviewUrl || ""}
+                          controls
+                          autoPlay
+                          playsInline
+                          className="w-full max-h-64 object-contain bg-black"
+                        />
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={displayPreviewUrl || ""}
+                          alt="Pré-visualização"
+                          className="w-full max-h-64 object-contain bg-gray-100 transition-all duration-200"
+                        />
+                      )}
                       <button
                         type="button"
-                        onClick={() => setSelectedQuestId(null)}
-                        className="text-[10px] text-[#cb7d87] hover:underline"
+                        onClick={resetForm}
+                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors z-10 cursor-pointer"
+                        title="Remover mídia"
                       >
-                        remover desafio
+                        <X className="w-4 h-4" />
                       </button>
+
+                      {/* Stats badge */}
+                      <div className="bg-gray-900 text-white text-[11px] px-3 py-1.5 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          {isVideo ? (
+                            <>
+                              <Video className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Clipe de Vídeo ({Math.round(videoDuration)}s)</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                              {isCompressing
+                                ? "Otimizando foto..."
+                                : useVintagePreset
+                                ? "✨ Visual analógico aplicado"
+                                : "Foto original otimizada"}
+                            </>
+                          )}
+                        </span>
+                        {!isCompressing && (activeCompressedSize > 0 || originalFileSize > 0) && (
+                          <span className="opacity-90">
+                            {isVideo
+                              ? formatBytes(originalFileSize)
+                              : `${formatBytes(originalFileSize)} → ${formatBytes(activeCompressedSize)}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Vintage Film Preset Toggle Pill (photos only) */}
+                    {!isVideo && (
+                      <div className="flex items-center justify-center pt-0.5">
+                        <div className="inline-flex items-center p-1 bg-gray-100 rounded-full border border-gray-200 shadow-xs">
+                          <button
+                            type="button"
+                            onClick={() => setUseVintagePreset(true)}
+                            className={`flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs tracking-wide transition-all cursor-pointer ${
+                              useVintagePreset
+                                ? "bg-[#cb7d87] text-white shadow-xs font-semibold"
+                                : "text-gray-600 hover:text-[#cb7d87]"
+                            }`}
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${useVintagePreset ? "text-amber-200" : "text-[#cb7d87]"}`} />
+                            <span>✨ Analógico Vintage</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setUseVintagePreset(false)}
+                            className={`flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs tracking-wide transition-all cursor-pointer ${
+                              !useVintagePreset
+                                ? "bg-gray-800 text-white shadow-xs font-semibold"
+                                : "text-gray-600 hover:text-gray-900"
+                            }`}
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>Original</span>
+                          </button>
+                        </div>
+                      </div>
                     )}
+
+                    {/* Switch / Retake buttons */}
+                    <div className="flex items-center justify-center gap-4 text-xs text-gray-500 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => (isVideo ? videoInputRef.current?.click() : cameraInputRef.current?.click())}
+                        className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2 cursor-pointer"
+                      >
+                        {isVideo ? <Video className="w-3.5 h-3.5" /> : <Camera className="w-3.5 h-3.5" />}
+                        <span>{isVideo ? "Gravar outro vídeo" : "Tirar outra foto"}</span>
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => galleryInputRef.current?.click()}
+                        className="inline-flex items-center gap-1 hover:text-[#cb7d87] transition-colors underline underline-offset-2 cursor-pointer"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>Escolher outro da galeria</span>
+                      </button>
+                    </div>
                   </div>
-                  <select
-                    value={selectedQuestId || ""}
-                    onChange={(e) => setSelectedQuestId(e.target.value || null)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#cb7d87]/30 bg-white focus:outline-none focus:border-[#cb7d87] text-xs text-[#49503b]"
-                  >
-                    <option value="">Nenhum desafio vinculado</option>
-                    {quests.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        {q.icon || "🎯"} {q.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Status messages */}
-              {errorMessage && (
-                <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 p-2.5 rounded-xl">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                  <span>{successMessage}</span>
-                </div>
-              )}
-
-              {/* Progress bar */}
-              {isUploading && (
-                <div className="space-y-1">
-                  <div className="w-full bg-[#fbead6] rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-[#cb7d87] h-full transition-all duration-300 rounded-full"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-center text-[#7c8764]">
-                    {isVideo ? "Enviando vídeo..." : "Enviando foto..."} {uploadProgress}%
-                  </p>
-                </div>
-              )}
-
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={!activeBlob || isCompressing || isUploading}
-                className="w-full flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-50 disabled:cursor-not-allowed text-[#fffaf5] py-3 rounded-2xl font-serif text-lg tracking-wide shadow-md transition-all active:scale-[0.99] cursor-pointer"
-              >
-                {isUploading ? (
-                  <span>Publicando...</span>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>{isVideo ? "Publicar Clipe de Vídeo" : "Publicar Foto"}</span>
-                  </>
                 )}
-              </button>
-            </form>
+
+                {/* Wedding Moment Selector (Momentos do Casamento) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Momento do Casamento
+                    </label>
+                    <span className="text-[11px] text-[#cb7d87] font-medium">
+                      {moments.find((m) => m.id === selectedMoment)?.name || "Selecione"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none -mx-1 px-1">
+                    {moments.map((m) => {
+                      const isSelected = selectedMoment === m.id;
+                      const isCurrentActive = getCurrentActiveMomentId(moments) === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setSelectedMoment(m.id)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs whitespace-nowrap transition-all cursor-pointer border ${
+                            isSelected
+                              ? "bg-[#cb7d87] text-white border-[#cb7d87] shadow-xs font-semibold scale-[1.02]"
+                              : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
+                          }`}
+                        >
+                          <span>{m.icon}</span>
+                          <span>{m.name}</span>
+                          {isCurrentActive && (
+                            <span
+                              className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
+                                isSelected ? "bg-white/25 text-white" : "bg-[#cb7d87]/15 text-[#cb7d87]"
+                              }`}
+                            >
+                              Agora
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Guest Name input */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wider">
+                    Seu Nome (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Ex: Tio Pedro ou Sarah"
+                    maxLength={100}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] focus:ring-1 focus:ring-[#cb7d87] text-sm text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+
+                {/* Dedication / Message input */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wider">
+                    Dedicatória ou Mensagem (opcional)
+                  </label>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Deixe uma mensagem para os anfitriões..."
+                    rows={2}
+                    maxLength={400}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] focus:ring-1 focus:ring-[#cb7d87] text-sm text-gray-900 placeholder:text-gray-400 resize-none"
+                  />
+                </div>
+
+                {/* Photo Quest Selector */}
+                {quests.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        🎯 Desafio da Festa (opcional)
+                      </label>
+                      {selectedQuestId && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedQuestId(null)}
+                          className="text-[10px] text-[#cb7d87] hover:underline"
+                        >
+                          remover desafio
+                        </button>
+                      )}
+                    </div>
+                    <select
+                      value={selectedQuestId || ""}
+                      onChange={(e) => setSelectedQuestId(e.target.value || null)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] text-xs text-gray-900"
+                    >
+                      <option value="">Nenhum desafio vinculado</option>
+                      {quests.map((q) => (
+                        <option key={q.id} value={q.id}>
+                          {q.icon || "🎯"} {q.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Status messages */}
+                {errorMessage && (
+                  <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 p-2.5 rounded-xl">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {successMessage && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>{successMessage}</span>
+                  </div>
+                )}
+
+                {/* Progress bar */}
+                {isUploading && (
+                  <div className="space-y-1">
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-[#cb7d87] h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-center text-gray-500">
+                      {isVideo ? "Enviando vídeo..." : "Enviando foto..."} {uploadProgress}%
+                    </p>
+                  </div>
+                )}
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={!activeBlob || isCompressing || isUploading}
+                  className="w-full flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-2xl text-base font-semibold tracking-wide shadow-md transition-all active:scale-[0.99] cursor-pointer"
+                >
+                  {isUploading ? (
+                    <span>Publicando...</span>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>{isVideo ? "Publicar Clipe de Vídeo" : "Publicar Foto"}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
       )}
     </>
   );

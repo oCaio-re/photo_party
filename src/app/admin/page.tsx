@@ -1,39 +1,34 @@
-import { notFound, redirect } from "next/navigation";
 import { db, ensureSchema } from "@/db";
 import { events, tables, photos } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { parseMomentsConfig } from "@/lib/moments";
 import { getAdminSession } from "@/lib/auth";
-import { HostAdminClient } from "./HostAdminClient";
+import { AdminLoginClient } from "./AdminLoginClient";
+import { HostAdminClient } from "@/app/e/[slug]/admin/HostAdminClient";
 
 export const dynamic = "force-dynamic";
 
-interface AdminPageProps {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ key?: string }>;
-}
-
-export default async function AdminPage({ params, searchParams }: AdminPageProps) {
-  const { slug } = await params;
-  const { key } = await searchParams;
-
+export default async function AdminPage() {
   await ensureSchema();
   const session = await getAdminSession();
 
-  const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
+  if (!session) {
+    return <AdminLoginClient />;
+  }
+
+  // Session authenticated: fetch the flagship wedding event "caio-e-sarah" or the latest event
+  const allEvents = await db.select().from(events).orderBy(desc(events.createdAt));
+  const event = allEvents.find((e) => e.slug === "caio-e-sarah") || allEvents[0];
+
   if (!event) {
-    notFound();
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white text-gray-900">
+        <p className="text-sm text-gray-500">Nenhum evento encontrado no banco de dados.</p>
+      </div>
+    );
   }
 
-  const isAuthorized = Boolean(
-    (session && session.role === "host") || (key && key === event.hostKey)
-  );
-
-  if (!isAuthorized) {
-    redirect("/admin");
-  }
-
-  // Initial data
+  // Fetch tables and photos
   const allTables = await db.select().from(tables).where(eq(tables.eventId, event.id));
   const allPhotos = await db
     .select({
@@ -83,9 +78,9 @@ export default async function AdminPage({ params, searchParams }: AdminPageProps
         initialTables={allTables}
         initialPhotos={formattedPhotos}
         initialMoments={parseMomentsConfig(event.momentsConfig)}
-        initialAuthorized={isAuthorized}
-        providedKey={key || event.hostKey}
-        loggedUser={session?.username}
+        initialAuthorized={true}
+        providedKey={event.hostKey}
+        loggedUser={session.username}
       />
     </div>
   );

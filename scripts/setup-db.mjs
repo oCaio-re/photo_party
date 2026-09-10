@@ -71,9 +71,9 @@ async function setup() {
     );
   `;
 
-  await sql`
-    ALTER TABLE photos ADD COLUMN IF NOT EXISTS guest_session_id TEXT;
-  `;
+  await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS guest_session_id TEXT;`;
+  await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS moment TEXT;`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS moments_config TEXT;`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS photo_likes (
