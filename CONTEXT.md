@@ -83,3 +83,13 @@ _Avoid_: Chatroom, group chat, forum, wall, shoutbox, general chat
 **Wedding Moment**:
 One of the canonical chronological phases of the Event (Cerimônia, Recepção e Fotos, Jantar Especial, Bolo e Brinde, Início da Festa, Encerramento) assigned to a Photo or Video Clip to organize the Live Gallery along the celebration's timeline.
 _Avoid_: Category, album, folder, tag, time slot
+
+**Guest Welcome Card**:
+A contextual greeting card displayed to a Guest upon arrival via a Table QR code, acknowledging their Table and explaining in 3 clear steps how to take a Photo, sign a message, and see it on the Live Slideshow.
+_Avoid_: Onboarding modal, splash screen, popup tutorial, wizard
+
+**Spotlight Tour**:
+A brief, interactive visual walkthrough featuring a gentle dimmed backdrop and illuminated focus cutouts highlighting essential actions (Photo capture, Live Gallery, and Wedding Moments) for a first-time Guest.
+_Avoid_: Onboarding wizard, product tour, walkme, tooltip flow, screen dimmer
+
+

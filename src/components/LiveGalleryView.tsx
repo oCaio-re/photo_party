@@ -16,10 +16,15 @@ import {
   Plus,
   Clock,
   Camera,
+  Filter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { EventHeroHeader } from "@/components/EventHeroHeader";
 import { PhotoQuestsHub } from "@/components/PhotoQuestsHub";
 import { EventChatView } from "@/components/EventChatView";
+import { SpotlightTour } from "@/components/SpotlightTour";
+import { HowItWorksModal } from "@/components/HowItWorksModal";
 import {
   WeddingMomentConfig,
   DEFAULT_WEDDING_MOMENTS,
@@ -194,6 +199,7 @@ export function LiveGalleryView({
   const [selectedQuestFilter, setSelectedQuestFilter] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortMode, setSortMode] = useState<"recent" | "likes">("recent");
+  const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
 
   // Guest identity
   const [guestSessionId, setGuestSessionId] = useState<string>("");
@@ -202,6 +208,18 @@ export function LiveGalleryView({
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [pendingCommentText, setPendingCommentText] = useState<string>("");
   const [nameInput, setNameInput] = useState<string>("");
+
+  // Listen for tab switch requests (e.g. from post-upload celebration)
+  useEffect(() => {
+    const handleSwitch = (e: Event) => {
+      const ce = e as CustomEvent<{ tab?: "hub" | "gallery" | "quests" | "chat" }>;
+      if (ce.detail?.tab) {
+        setMainTab(ce.detail.tab);
+      }
+    };
+    window.addEventListener("photo_party_switch_tab", handleSwitch);
+    return () => window.removeEventListener("photo_party_switch_tab", handleSwitch);
+  }, []);
 
   // Photo deletion state
   const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null);
@@ -792,121 +810,152 @@ export function LiveGalleryView({
             </div>
           </div>
 
-          {/* Horizontal Category Tabs with Active Bottom Underline (from exemplo_grid.png) */}
-          <div className="flex items-center gap-6 sm:gap-8 px-4 sm:px-2 pt-3 border-b border-gray-100 overflow-x-auto scrollbar-none text-sm sm:text-base bg-white">
-            <button
-              onClick={() => {
-                setSelectedCategory("all");
-                setSelectedTable("all");
-                setSelectedQuestFilter("all");
-              }}
-              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === "all" && selectedTable === "all" && selectedQuestFilter === "all"
-                  ? "text-gray-900 font-bold"
-                  : "text-gray-400 hover:text-gray-700 font-medium"
-              }`}
-            >
-              <span>Ver todos</span>
-              {selectedCategory === "all" && selectedTable === "all" && selectedQuestFilter === "all" && (
-                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
-              )}
-            </button>
-
-            {/* 6 Wedding Moments Tabs */}
-            {moments.map((m) => {
-              const isSelected = selectedCategory === m.id;
-              const isCurrent = getCurrentActiveMomentId(moments) === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setSelectedCategory(m.id);
-                    setSelectedTable("all");
-                    setSelectedQuestFilter("all");
-                  }}
-                  className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
-                      ? "text-gray-900 font-bold"
-                      : "text-gray-400 hover:text-gray-700 font-medium"
-                  }`}
-                >
-                  <span>{m.icon}</span>
-                  <span>{m.name}</span>
-                  {isCurrent && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#cb7d87] animate-pulse" />
-                  )}
-                  {isSelected && (
-                    <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-[#cb7d87] rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => {
-                setSelectedCategory("likes");
-                setSortMode("likes");
-              }}
-              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === "likes"
-                  ? "text-gray-900 font-bold"
-                  : "text-gray-400 hover:text-gray-700 font-medium"
-              }`}
-            >
-              <span>Mais Curtidas</span>
-              {selectedCategory === "likes" && (
-                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
-              )}
-            </button>
-
-            <button
-              onClick={() => setSelectedCategory("videos")}
-              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === "videos"
-                  ? "text-gray-900 font-bold"
-                  : "text-gray-400 hover:text-gray-700 font-medium"
-              }`}
-            >
-              <span>Vídeos</span>
-              {selectedCategory === "videos" && (
-                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
-              )}
-            </button>
-
-            <button
-              onClick={() => setSelectedCategory("quests")}
-              className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === "quests"
-                  ? "text-gray-900 font-bold"
-                  : "text-gray-400 hover:text-gray-700 font-medium"
-              }`}
-            >
-              <span>Desafios</span>
-              {selectedCategory === "quests" && (
-                <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
-              )}
-            </button>
-
-            {/* Table filter tabs if present */}
-            {tableOptions.map((tName) => (
+          {/* Streamlined Primary Filter Pills */}
+          <div className="px-4 sm:px-2 pt-3 pb-2 border-b border-gray-100 bg-white space-y-2">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+              {/* 1. Todas as Fotos */}
               <button
-                key={tName}
+                type="button"
                 onClick={() => {
-                  setSelectedTable(tName);
                   setSelectedCategory("all");
+                  setSelectedTable("all");
+                  setSelectedQuestFilter("all");
+                  setSortMode("recent");
                 }}
-                className={`relative pb-3 whitespace-nowrap transition-colors cursor-pointer ${
-                  selectedTable === tName
-                    ? "text-gray-900 font-bold"
-                    : "text-gray-400 hover:text-gray-700 font-medium"
+                className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                  selectedCategory === "all" && selectedTable === "all" && selectedQuestFilter === "all"
+                    ? "bg-[#cb7d87] text-white border-[#cb7d87] shadow-xs"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
                 }`}
               >
-                <span>{tName}</span>
-                {selectedTable === tName && (
-                  <span className="absolute bottom-0 inset-x-0 h-[2.5px] bg-gray-900 rounded-full" />
-                )}
+                📸 Todas as Fotos
               </button>
-            ))}
+
+              {/* 2. Nossa Mesa */}
+              {tableName ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTable(tableName);
+                    setSelectedCategory("all");
+                    setSelectedQuestFilter("all");
+                  }}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                    selectedTable === tableName
+                      ? "bg-[#cb7d87] text-white border-[#cb7d87] shadow-xs"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
+                  }`}
+                >
+                  🍽️ Nossa {tableName}
+                </button>
+              ) : tableOptions.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowMoreFilters((prev) => !prev)}
+                  className="px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 cursor-pointer"
+                >
+                  🍽️ Escolher Mesa
+                </button>
+              ) : null}
+
+              {/* 3. Mais Curtidas */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory("likes");
+                  setSortMode("likes");
+                }}
+                className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                  selectedCategory === "likes" || sortMode === "likes"
+                    ? "bg-[#cb7d87] text-white border-[#cb7d87] shadow-xs"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
+                }`}
+              >
+                ❤️ Mais Curtidas
+              </button>
+
+              {/* 4. More filters toggle */}
+              <button
+                type="button"
+                onClick={() => setShowMoreFilters((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                  showMoreFilters || (selectedCategory !== "all" && selectedCategory !== "likes") || (selectedTable !== "all" && selectedTable !== tableName)
+                    ? "bg-[#5a6248] text-white border-[#5a6248]"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span>Mais Filtros</span>
+                {showMoreFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {/* Expandable Secondary Filters (Moments, Videos, Tables) */}
+            {showMoreFilters && (
+              <div className="p-3 bg-[#fffaf5] border border-[#cb7d87]/20 rounded-2xl space-y-2.5 animate-fade-in text-xs">
+                {/* Moments Filter */}
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#cb7d87] mb-1">
+                    Filtrar por Momento:
+                  </span>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {moments.map((m) => {
+                      const isSelected = selectedCategory === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory(m.id);
+                            setSelectedTable("all");
+                            setSelectedQuestFilter("all");
+                          }}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all border cursor-pointer ${
+                            isSelected
+                              ? "bg-[#cb7d87] text-white border-[#cb7d87] font-semibold"
+                              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span>{m.icon}</span>
+                          <span>{m.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Tables & Media Filter */}
+                {tableOptions.length > 0 && (
+                  <div className="pt-2 border-t border-[#cb7d87]/15">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-600 mb-1">
+                      Filtrar por Outra Mesa:
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                      {tableOptions.map((tName) => {
+                        const isSelected = selectedTable === tName;
+                        return (
+                          <button
+                            key={tName}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTable(tName);
+                              setSelectedCategory("all");
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs whitespace-nowrap border cursor-pointer transition-all ${
+                              isSelected
+                                ? "bg-gray-900 text-white border-gray-900 font-semibold"
+                                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span>{tName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Active Quest Filter Banner */}
@@ -1302,11 +1351,12 @@ export function LiveGalleryView({
                 <div ref={commentsEndRef} />
               </div>
 
-              {/* Action Bar (Like count & button) */}
-              <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+              {/* Action Bar (Like count & button + Salvar no Celular) */}
+              <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between gap-2 bg-gray-50/70">
                 <button
+                  type="button"
                   onClick={() => handleLikeToggle(activePhoto)}
-                  className="flex items-center gap-2 text-gray-700 hover:text-[#cb7d87] transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-gray-700 hover:text-[#cb7d87] transition-colors cursor-pointer active:scale-95"
                 >
                   <Heart
                     className={`w-5 h-5 ${
@@ -1319,6 +1369,16 @@ export function LiveGalleryView({
                     {activePhoto.likeCount || 0}{" "}
                     {(activePhoto.likeCount || 0) === 1 ? "curtida" : "curtidas"}
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownload(activePhoto)}
+                  className="flex items-center gap-1.5 bg-[#cb7d87]/15 hover:bg-[#cb7d87]/25 text-[#832d3b] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-2xs"
+                  title="Salvar foto no seu celular"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#cb7d87]" />
+                  <span>Salvar no Celular</span>
                 </button>
               </div>
 
@@ -1410,6 +1470,12 @@ export function LiveGalleryView({
           </form>
         </div>
       )}
+
+      {/* Global First-Time Guest Spotlight Walkthrough */}
+      <SpotlightTour />
+
+      {/* Global How It Works Guide Modal */}
+      <HowItWorksModal trigger="none" />
     </div>
   );
 }

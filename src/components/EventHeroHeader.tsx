@@ -11,8 +11,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Tv,
+  HelpCircle,
 } from "lucide-react";
 import { PhotoItem } from "./LiveGalleryView";
+import { GuestWelcomeCard } from "./GuestWelcomeCard";
+import { openHowItWorksGuide } from "./HowItWorksModal";
 import {
   WeddingMomentConfig,
   DEFAULT_WEDDING_MOMENTS,
@@ -315,10 +318,21 @@ export function EventHeroHeader({
 
         {/* Floating Pill Badge, Couple Name & Date Overlay (identical to exemplo_nova_UI.jpeg) */}
         <div className="absolute bottom-2 sm:bottom-4 inset-x-0 flex flex-col items-center text-center px-4 z-10">
-          {/* Status Pill Badge: Álbum ao vivo */}
-          <div className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-1 sm:py-1.5 rounded-full bg-white/75 backdrop-blur-md border border-[#cb7d87]/30 text-[#cb7d87] text-xs sm:text-sm font-semibold shadow-xs mb-1.5">
-            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#cb7d87]" />
-            <span>Álbum ao vivo</span>
+          {/* Status Pill Badge: Álbum ao vivo & Como funciona */}
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap justify-center">
+            <div className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-white/75 backdrop-blur-md border border-[#cb7d87]/30 text-[#cb7d87] text-xs sm:text-sm font-semibold shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#cb7d87]" />
+              <span>Álbum ao vivo</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => openHowItWorksGuide()}
+              className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 rounded-full bg-white/80 hover:bg-white text-[#5a6248] hover:text-[#cb7d87] text-xs font-semibold backdrop-blur-md border border-[#cb7d87]/25 shadow-xs transition-colors cursor-pointer active:scale-95"
+              title="Como funciona o Photo Party"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-[#cb7d87]" />
+              <span>Como funciona?</span>
+            </button>
           </div>
 
           {/* Couple Title: Caio & Sarah ✨💍 */}
@@ -333,11 +347,22 @@ export function EventHeroHeader({
         </div>
       </div>
 
+      {/* Contextual Table Welcome Card for the Guest */}
+      <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl px-4 mt-4 sm:mt-6">
+        <GuestWelcomeCard
+          tableName={tableName}
+          onTakePhoto={() => {
+            window.dispatchEvent(new CustomEvent("open-upload-modal"));
+          }}
+        />
+      </div>
+
       {/* Central Navigation Bar (clean icons directly on pure white background) */}
-      <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl px-4 mt-5 sm:mt-8 bg-white">
+      <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl px-4 mt-4 sm:mt-6 bg-white">
         <div className="grid grid-cols-5 gap-1 items-center justify-between text-center">
           {/* 1. Fotos (opens Gallery view) */}
           <button
+            id="nav-photos-button"
             onClick={() => {
               onSelectCategory("all");
               onTabChange("gallery");
@@ -445,7 +470,7 @@ export function EventHeroHeader({
       </div>
 
       {/* Fluid 3D Coverflow Carousel (identical to exemplo_nova_UI.jpeg with adjacent items visible) */}
-      <div className="w-full mt-6 mb-8 px-0 sm:px-2">
+      <div id="moments-carousel-section" className="w-full mt-6 mb-8 px-0 sm:px-2">
         <div className="relative w-full flex items-center justify-center">
           {/* Prev Card Arrow */}
           <button
