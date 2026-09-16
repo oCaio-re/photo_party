@@ -335,9 +335,9 @@ export function EventHeroHeader({
             </button>
           </div>
 
-          {/* Couple Title: Caio & Sarah ✨💍 */}
+          {/* Couple Title: Caio & Sarah */}
           <h1 className="font-sans font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-gray-900 tracking-tight">
-            {title || "Caio & Sarah ✨💍"}
+            {title || "Caio & Sarah"}
           </h1>
 
           {/* Date & Time */}

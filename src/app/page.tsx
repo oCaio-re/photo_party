@@ -34,7 +34,7 @@ export default async function HomePage() {
         </p>
       </div>
 
-      {/* Flagship Showcase Card: Casamento de Caio & Sarah */}
+      {/* Flagship Showcase Card: Caio & Sarah */}
       {flagship && (
         <div className="w-full bg-[#fffaf5] border border-[#cb7d87]/30 rounded-3xl p-6 sm:p-8 shadow-md relative overflow-hidden mb-10">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#fbead6] rounded-full blur-2xl opacity-60 pointer-events-none" />

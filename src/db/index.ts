@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import * as schema from "./schema";
 import crypto from "crypto";
 
@@ -134,7 +134,7 @@ export async function ensureSchema(): Promise<void> {
           .values({
             id: eventId,
             slug: "caio-e-sarah",
-            title: "Casamento de Caio & Sarah",
+            title: "Caio & Sarah",
             hostKey,
             moderationPolicy: "immediate",
             isUploadClosed: false,
@@ -163,6 +163,17 @@ export async function ensureSchema(): Promise<void> {
               createdAt: now,
             });
         }
+      } else {
+        // Ensure flagship title is updated if previously seeded with old title
+        await db
+          .update(schema.events)
+          .set({ title: "Caio & Sarah" })
+          .where(
+            and(
+              eq(schema.events.slug, "caio-e-sarah"),
+              eq(schema.events.title, "Casamento de Caio & Sarah")
+            )
+          );
       }
 
       // Ensure default photo quests exist for each event

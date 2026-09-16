@@ -186,7 +186,7 @@ function VideoGridThumbnail({ url }: { url: string }) {
 
 export function LiveGalleryView({
   slug,
-  title = "Caio & Sarah ✨💍",
+  title = "Caio & Sarah",
   tableName,
   initialPhotos = [],
   momentsConfig = DEFAULT_WEDDING_MOMENTS,

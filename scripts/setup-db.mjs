@@ -101,14 +101,14 @@ async function setup() {
   // Verify flagship event
   const events = await sql`SELECT id, slug, title FROM events WHERE slug = 'caio-e-sarah' LIMIT 1;`;
   if (events.length === 0) {
-    console.log("💍 Semeando evento de destaque: Casamento de Caio & Sarah...");
+    console.log("💍 Semeando evento de destaque: Caio & Sarah...");
     const eventId = crypto.randomUUID();
     const hostKey = "amor2026";
     const now = new Date();
 
     await sql`
       INSERT INTO events (id, slug, title, host_key, moderation_policy, is_upload_closed, created_at)
-      VALUES (${eventId}, 'caio-e-sarah', 'Casamento de Caio & Sarah', ${hostKey}, 'immediate', FALSE, ${now});
+      VALUES (${eventId}, 'caio-e-sarah', 'Caio & Sarah', ${hostKey}, 'immediate', FALSE, ${now});
     `;
 
     const initialTables = [
@@ -132,7 +132,8 @@ async function setup() {
     }
     console.log("✅ Evento 'caio-e-sarah' e mesas iniciais criados com sucesso!");
   } else {
-    console.log("ℹ️ Evento 'caio-e-sarah' já existente no banco de dados.");
+    await sql`UPDATE events SET title = 'Caio & Sarah' WHERE slug = 'caio-e-sarah';`;
+    console.log("ℹ️ Evento 'caio-e-sarah' atualizado/verificado com o título 'Caio & Sarah'.");
   }
 
   console.log("🎉 Banco de dados Neon 100% pronto para uso!");
