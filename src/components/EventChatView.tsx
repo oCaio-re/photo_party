@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Send, Trash2, RefreshCw, MessageSquare, Sparkles, User, AlertCircle } from "lucide-react";
+import { ensureGuestSessionId, useGuestIdentity, useStoredValue } from "@/hooks/useGuestIdentity";
 
 export interface ChatMessageItem {
   id: string;
@@ -54,31 +55,14 @@ export function EventChatView({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [guestSessionId, setGuestSessionId] = useState(initialSessionId || "");
-  const [guestName, setGuestName] = useState(initialName || "");
-  const [tableIdentifier, setTableIdentifier] = useState<string | null>(null);
+  const identity = useGuestIdentity();
+  const guestSessionId = initialSessionId || identity.guestSessionId;
+  const guestName = initialName || identity.guestName;
+  const tableIdentifier = useStoredValue("photo_party_table_id") || null;
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef<boolean>(true);
-
-  // Load identity from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      let sId = localStorage.getItem("photo_party_guest_id");
-      if (!sId) {
-        sId = crypto.randomUUID();
-        localStorage.setItem("photo_party_guest_id", sId);
-      }
-      setGuestSessionId(sId);
-
-      const savedName = localStorage.getItem("photo_party_guest_name") || "";
-      if (savedName) setGuestName(savedName);
-
-      const savedTable = localStorage.getItem("photo_party_table_id") || "";
-      if (savedTable) setTableIdentifier(savedTable);
-    }
-  }, []);
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
@@ -103,11 +87,14 @@ export function EventChatView({
     }
   }, [slug]);
 
-  // Initial fetch and polling every 4 seconds
+  // Initial fetch (deferred a tick so no state is set synchronously) and polling every 4 seconds
   useEffect(() => {
-    fetchMessages();
+    const initial = setTimeout(fetchMessages, 0);
     const interval = setInterval(fetchMessages, 4000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
   }, [fetchMessages]);
 
   // Auto-scroll on initial load or new messages
@@ -134,7 +121,7 @@ export function EventChatView({
       setIsSending(true);
       setError(null);
 
-      const sId = guestSessionId || localStorage.getItem("photo_party_guest_id") || "";
+      const sId = guestSessionId || ensureGuestSessionId();
       const currentName = guestName || localStorage.getItem("photo_party_guest_name") || "Convidado";
       const currentTable = tableIdentifier || localStorage.getItem("photo_party_table_id") || null;
 
@@ -169,7 +156,7 @@ export function EventChatView({
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
-      const sId = guestSessionId || localStorage.getItem("photo_party_guest_id") || "";
+      const sId = guestSessionId || ensureGuestSessionId();
       const res = await fetch(`/api/events/${slug}/chat/${messageId}`, {
         method: "DELETE",
         headers: {

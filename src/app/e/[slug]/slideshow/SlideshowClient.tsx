@@ -78,7 +78,9 @@ export function SlideshowClient({
   const [progress, setProgress] = useState(0);
 
   const photosRef = useRef<SlideshowPhoto[]>(photos);
-  photosRef.current = photos;
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
 
   // Poll for new photos & chat messages without disrupting the slideshow transitions
   useEffect(() => {
@@ -86,7 +88,7 @@ export function SlideshowClient({
 
     const fetchPhotos = async () => {
       try {
-        const res = await fetch(`/api/events/${slug}/photos`);
+        const res = await fetch(`/api/events/${slug}/photos?comments=1&limit=300`);
         if (res.ok && isSubscribed) {
           const data = await res.json();
           if (Array.isArray(data.photos) && data.photos.length > 0) {

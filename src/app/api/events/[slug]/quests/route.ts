@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events, photoQuests, photos } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
@@ -17,7 +17,6 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    await ensureSchema();
     const { slug } = await context.params;
 
     const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
@@ -66,7 +65,6 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    await ensureSchema();
     const { slug } = await context.params;
 
     const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);

@@ -99,3 +99,36 @@ export function validateMediaBuffer(buffer: Buffer): {
 export function isAllowedMimeType(mime: string): boolean {
   return ALLOWED_MIME_TYPES.has(mime.toLowerCase());
 }
+
+export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+const EXTENSION_BY_MIME: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "image/heif": "heic",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+};
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+};
+
+export function extensionForMime(mime: string): string | null {
+  return EXTENSION_BY_MIME[mime.toLowerCase().split(";")[0].trim()] ?? null;
+}
+
+export function mimeForFilename(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return MIME_BY_EXTENSION[ext] || "application/octet-stream";
+}

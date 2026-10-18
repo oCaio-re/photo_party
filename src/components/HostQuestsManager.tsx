@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Sparkles, Plus, Trash2, RefreshCw, AlertCircle, Check } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Plus, Trash2, RefreshCw, AlertCircle, Check } from "lucide-react";
 import { QuestItem } from "@/components/PhotoQuestsHub";
 
 interface HostQuestsManagerProps {
@@ -25,7 +25,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
   const [showForm, setShowForm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchQuests = async () => {
+  const fetchQuests = useCallback(async () => {
     try {
       setError(null);
       const res = await fetch(`/api/events/${slug}/quests`);
@@ -40,11 +40,12 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [slug]);
 
   useEffect(() => {
-    fetchQuests();
-  }, [slug]);
+    const initial = setTimeout(fetchQuests, 0);
+    return () => clearTimeout(initial);
+  }, [fetchQuests]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

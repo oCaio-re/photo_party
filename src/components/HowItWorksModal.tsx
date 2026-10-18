@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useEffectEvent } from "react";
 import {
   HelpCircle,
   X,
@@ -95,11 +95,13 @@ export function HowItWorksModal({
     };
   }, [isControlled]);
 
+  const onEscape = useEffectEvent(() => handleClose());
+
   // Lock body scroll and listen for Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        handleClose();
+        onEscape();
       }
     };
     if (open) {

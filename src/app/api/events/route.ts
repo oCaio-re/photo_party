@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, ensureSchema } from "@/db";
-import { events, tables } from "@/db/schema";
+import { db } from "@/db";
+import { events, tables, photoQuests } from "@/db/schema";
+import { DEFAULT_WEDDING_QUESTS } from "@/lib/default-quests";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureSchema();
 
     const body = await request.json();
     const { title, slug: customSlug, moderationPolicy = "immediate", uploadHours } = body;
@@ -54,17 +54,27 @@ export async function POST(request: NextRequest) {
         createdAt: now,
       });
 
-    // Default initial tables
+    // Default initial tables and Photo Quests
     const defaultTables = ["Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5"];
-    for (const tableName of defaultTables) {
-      await db.insert(tables)
-        .values({
-          id: crypto.randomUUID(),
-          eventId,
-          identifier: tableName,
-          createdAt: now,
-        });
-    }
+    await db.insert(tables).values(
+      defaultTables.map((tableName) => ({
+        id: crypto.randomUUID(),
+        eventId,
+        identifier: tableName,
+        createdAt: now,
+      }))
+    );
+    await db.insert(photoQuests).values(
+      DEFAULT_WEDDING_QUESTS.map((q) => ({
+        id: crypto.randomUUID(),
+        eventId,
+        title: q.title,
+        description: q.description,
+        icon: q.icon,
+        isActive: true,
+        createdAt: now,
+      }))
+    );
 
     return NextResponse.json({
       success: true,

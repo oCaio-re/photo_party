@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { events, photos, photoLikes, photoComments } from "@/db/schema";
+import { events, photos } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getStorageProvider } from "@/lib/storage";
 
@@ -95,18 +95,16 @@ export async function DELETE(
       );
     }
 
-    // Delete from storage
+    // A single statement is atomic; likes and comments go with it via ON DELETE CASCADE
+    await db.delete(photos).where(eq(photos.id, photoId));
+
+    // Remove the file only after the row is gone, so a failure never leaves a broken Photo
     try {
       const storage = getStorageProvider();
       await storage.deleteFile(photo.storagePath);
     } catch (e) {
       console.warn("Storage deletion warning:", e);
     }
-
-    // Cleanly delete photo interactions and the photo record
-    await db.delete(photoLikes).where(eq(photoLikes.photoId, photoId));
-    await db.delete(photoComments).where(eq(photoComments.photoId, photoId));
-    await db.delete(photos).where(eq(photos.id, photoId));
 
     return NextResponse.json({ success: true, photoId });
   } catch (error) {

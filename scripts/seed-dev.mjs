@@ -335,7 +335,7 @@ async function main() {
       `;
     }
 
-    try { fs.unlinkSync(tempFile); } catch (e) {}
+    try { fs.unlinkSync(tempFile); } catch {}
   }
 
   // 4. Process and Insert Videos
@@ -393,8 +393,8 @@ async function main() {
       `;
     }
 
-    try { fs.unlinkSync(tempImg); } catch (e) {}
-    try { fs.unlinkSync(tempVid); } catch (e) {}
+    try { fs.unlinkSync(tempImg); } catch {}
+    try { fs.unlinkSync(tempVid); } catch {}
   }
 
   // 5. Seed Real-Time Chat Messages

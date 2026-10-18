@@ -1,5 +1,28 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Database & storage setup
+
+The database schema lives in `src/db/schema.ts` and is **not** created at runtime.
+After changing the schema (or on a fresh database), run with `DATABASE_URL` set:
+
+```bash
+npm run db:init   # = db:push (drizzle-kit syncs tables/indexes) + db:setup (seeds flagship Event and default Photo Quests)
+```
+
+Guest uploads go straight from the browser to Cloudflare R2 through presigned URLs
+(`POST /api/events/[slug]/upload/presign`), so the Vercel function body limit (~4.5MB) does not apply.
+This requires a CORS rule on the R2 bucket allowing `PUT` from the app origin with the `Content-Type` header:
+
+```json
+[{ "AllowedOrigins": ["https://your-app.vercel.app"], "AllowedMethods": ["PUT"], "AllowedHeaders": ["Content-Type"], "MaxAgeSeconds": 3600 }]
+```
+
+Without R2 credentials (local development) files are stored in `public/uploads/` via a regular multipart upload.
+
+Each presigned key is recorded in `pending_uploads` until the Guest confirms it. A daily Vercel Cron
+(`vercel.json` → `/api/cron/cleanup-uploads`) deletes files of uploads abandoned for over an hour;
+set `CRON_SECRET` in the Vercel project so the route accepts the scheduler's requests.
+
 ## Getting Started
 
 First, run the development server:

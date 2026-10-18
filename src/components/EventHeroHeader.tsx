@@ -26,20 +26,16 @@ interface EventHeroHeaderProps {
   slug: string;
   title: string;
   photos: PhotoItem[];
+  /** Server-side totals per Wedding Moment; the loaded `photos` may be only the first page. */
+  momentCounts?: Record<string, number>;
+  /** Server-side newest photo URL per Wedding Moment. */
+  momentCovers?: Record<string, string>;
   tableName?: string;
   activeTab: "hub" | "gallery" | "quests" | "chat";
   onTabChange: (tab: "hub" | "gallery" | "quests" | "chat") => void;
   onSelectCategory: (category: string) => void;
   momentsConfig?: WeddingMomentConfig[];
 }
-
-// Fallback curated warm wedding photos for carousel cards until user photos are uploaded
-const FALLBACK_CAROUSEL_IMAGES = {
-  recent: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80", // banquet & dinner
-  likes: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80", // romantic couple toast
-  videos: "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=800&q=80", // wedding party & sparklers
-  quests: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800&q=80", // rings & bouquet
-};
 
 // Target date: 11 de Dezembro de 2026, 15:00h Horário de Brasília (UTC-3)
 const WEDDING_START_DATE = new Date("2026-12-11T15:00:00-03:00").getTime();
@@ -54,6 +50,8 @@ export function EventHeroHeader({
   slug,
   title,
   photos,
+  momentCounts,
+  momentCovers,
   tableName,
   activeTab,
   onTabChange,
@@ -180,7 +178,7 @@ export function EventHeroHeader({
 
   const carouselCards = moments.map((m) => {
     const momentPhotos = photos.filter((p) => p.moment === m.id);
-    const coverImage = momentPhotos[0]?.url || m.fallbackImage;
+    const coverImage = momentCovers?.[m.id] || momentPhotos[0]?.url || m.fallbackImage;
     const isCurrentActive = m.id === activeMomentId;
 
     return {
@@ -191,7 +189,7 @@ export function EventHeroHeader({
       endTime: m.endTime,
       category: m.id,
       image: coverImage,
-      count: momentPhotos.length,
+      count: momentCounts?.[m.id] ?? momentPhotos.length,
       isCurrentActive,
       description: m.description,
     };

@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { DEFAULT_WEDDING_QUESTS } from "../src/lib/default-quests.ts";
 
 // Try loading .env if DATABASE_URL is not in process.env
 if (!process.env.DATABASE_URL) {
@@ -28,82 +29,24 @@ if (!process.env.DATABASE_URL) {
 
 const sql = neon(process.env.DATABASE_URL);
 
+/**
+ * Seeds data only. The table structure lives in src/db/schema.ts and is applied with
+ * `npm run db:push` (drizzle-kit), which must run before this script.
+ */
 async function setup() {
   console.log("🚀 Conectando ao Neon PostgreSQL...");
 
-  console.log("📦 Criando tabelas se não existirem...");
+  const [{ exists }] = await sql`SELECT to_regclass('public.events') IS NOT NULL AS exists;`;
+  if (!exists) {
+    console.error("❌ Tabelas não encontradas. Rode primeiro: npm run db:push");
+    process.exit(1);
+  }
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS events (
-      id TEXT PRIMARY KEY,
-      slug TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      host_key TEXT NOT NULL,
-      moderation_policy TEXT NOT NULL DEFAULT 'immediate',
-      upload_deadline TIMESTAMP,
-      is_upload_closed BOOLEAN NOT NULL DEFAULT FALSE,
-      created_at TIMESTAMP NOT NULL
-    );
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS tables (
-      id TEXT PRIMARY KEY,
-      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-      identifier TEXT NOT NULL,
-      qr_code_data_url TEXT,
-      created_at TIMESTAMP NOT NULL
-    );
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS photos (
-      id TEXT PRIMARY KEY,
-      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-      table_id TEXT REFERENCES tables(id) ON DELETE SET NULL,
-      guest_name TEXT,
-      guest_session_id TEXT,
-      message TEXT,
-      storage_path TEXT NOT NULL,
-      url TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'approved',
-      created_at TIMESTAMP NOT NULL
-    );
-  `;
-
-  await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS guest_session_id TEXT;`;
-  await sql`ALTER TABLE photos ADD COLUMN IF NOT EXISTS moment TEXT;`;
-  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS moments_config TEXT;`;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS photo_likes (
-      id TEXT PRIMARY KEY,
-      photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
-      guest_session_id TEXT NOT NULL,
-      created_at TIMESTAMP NOT NULL,
-      UNIQUE(photo_id, guest_session_id)
-    );
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS photo_comments (
-      id TEXT PRIMARY KEY,
-      photo_id TEXT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
-      guest_session_id TEXT NOT NULL,
-      guest_name TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_at TIMESTAMP NOT NULL
-    );
-  `;
-
-  console.log("✅ Tabelas verificadas/criadas com sucesso!");
-
-  // Verify flagship event
-  const events = await sql`SELECT id, slug, title FROM events WHERE slug = 'caio-e-sarah' LIMIT 1;`;
+  const events = await sql`SELECT id FROM events WHERE slug = 'caio-e-sarah' LIMIT 1;`;
   if (events.length === 0) {
     console.log("💍 Semeando evento de destaque: Caio & Sarah...");
     const eventId = crypto.randomUUID();
-    const hostKey = "amor2026";
+    const hostKey = process.env.FLAGSHIP_HOST_KEY || crypto.randomBytes(16).toString("hex");
     const now = new Date();
 
     await sql`
@@ -124,16 +67,33 @@ async function setup() {
     ];
 
     for (const t of initialTables) {
-      const tableId = crypto.randomUUID();
       await sql`
         INSERT INTO tables (id, event_id, identifier, created_at)
-        VALUES (${tableId}, ${eventId}, ${t}, ${now});
+        VALUES (${crypto.randomUUID()}, ${eventId}, ${t}, ${now});
       `;
     }
     console.log("✅ Evento 'caio-e-sarah' e mesas iniciais criados com sucesso!");
+    console.log(`🔑 Host Key do evento: ${hostKey}`);
   } else {
-    await sql`UPDATE events SET title = 'Caio & Sarah' WHERE slug = 'caio-e-sarah';`;
-    console.log("ℹ️ Evento 'caio-e-sarah' atualizado/verificado com o título 'Caio & Sarah'.");
+    console.log("ℹ️ Evento 'caio-e-sarah' já existe.");
+  }
+
+  // Every Event starts with the default Photo Quests
+  const eventsWithoutQuests = await sql`
+    SELECT e.id FROM events e
+    WHERE NOT EXISTS (SELECT 1 FROM photo_quests q WHERE q.event_id = e.id);
+  `;
+  for (const ev of eventsWithoutQuests) {
+    const now = new Date();
+    for (const q of DEFAULT_WEDDING_QUESTS) {
+      await sql`
+        INSERT INTO photo_quests (id, event_id, title, description, icon, is_active, created_at)
+        VALUES (${crypto.randomUUID()}, ${ev.id}, ${q.title}, ${q.description}, ${q.icon}, TRUE, ${now});
+      `;
+    }
+  }
+  if (eventsWithoutQuests.length > 0) {
+    console.log(`🎯 Desafios padrão criados para ${eventsWithoutQuests.length} evento(s).`);
   }
 
   console.log("🎉 Banco de dados Neon 100% pronto para uso!");

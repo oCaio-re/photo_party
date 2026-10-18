@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events, chatMessages } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import crypto from "crypto";
 
 export async function GET(
@@ -9,7 +9,6 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    await ensureSchema();
     const { slug } = await context.params;
 
     const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
@@ -17,13 +16,14 @@ export async function GET(
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
 
-    // Return the latest messages in chronological order (up to 150)
-    const messages = await db
+    // Take the 150 newest messages, then return them in chronological order
+    const latestFirst = await db
       .select()
       .from(chatMessages)
       .where(eq(chatMessages.eventId, event.id))
-      .orderBy(asc(chatMessages.createdAt))
+      .orderBy(desc(chatMessages.createdAt))
       .limit(150);
+    const messages = latestFirst.reverse();
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -37,7 +37,6 @@ export async function POST(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    await ensureSchema();
     const { slug } = await context.params;
 
     const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);

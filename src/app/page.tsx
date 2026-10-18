@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { MonogramLogo } from "@/components/MonogramLogo";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { Sparkles, Camera, ShieldCheck, Download, PlusCircle, ArrowRight } from "lucide-react";
+import { Camera, ShieldCheck, Download } from "lucide-react";
 import CreateEventForm from "./CreateEventForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  await ensureSchema();
   const allEvents = await db.select().from(events).orderBy(desc(events.createdAt));
   const flagship = allEvents.find((e) => e.slug === "caio-e-sarah") || allEvents[0];
 

@@ -43,8 +43,8 @@ export default function CreateEventForm() {
         adminUrl: data.adminUrl,
         hostKey: data.event.hostKey,
       });
-    } catch (err: any) {
-      alert(err.message || "Falha ao criar evento");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Falha ao criar evento");
     } finally {
       setIsSubmitting(false);
     }
@@ -148,7 +148,7 @@ export default function CreateEventForm() {
           </label>
           <select
             value={moderationPolicy}
-            onChange={(e) => setModerationPolicy(e.target.value as any)}
+            onChange={(e) => setModerationPolicy(e.target.value as "immediate" | "approval_required")}
             className="w-full px-3 py-2.5 rounded-xl border border-[#cb7d87]/30 bg-white focus:outline-none focus:border-[#cb7d87] text-xs text-[#49503b]"
           >
             <option value="immediate">Publicação Imediata (Recomendado)</option>

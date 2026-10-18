@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { MessageSquare, Trash2, RefreshCw, Send, AlertCircle, Shield } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Trash2, RefreshCw, Send, AlertCircle, Shield } from "lucide-react";
 import { ChatMessageItem } from "@/components/EventChatView";
 
 interface HostChatManagerProps {
@@ -18,7 +18,7 @@ export function HostChatManager({ slug, hostKey }: HostChatManagerProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setError(null);
       const res = await fetch(`/api/events/${slug}/chat`);
@@ -33,11 +33,12 @@ export function HostChatManager({ slug, hostKey }: HostChatManagerProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [slug]);
 
   useEffect(() => {
-    fetchMessages();
-  }, [slug]);
+    const initial = setTimeout(fetchMessages, 0);
+    return () => clearTimeout(initial);
+  }, [fetchMessages]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

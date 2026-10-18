@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Sparkles, Camera, CheckCircle, RefreshCw, Eye } from "lucide-react";
 
 export interface QuestItem {
@@ -34,7 +34,7 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchQuests = async () => {
+  const fetchQuests = useCallback(async () => {
     try {
       const res = await fetch(`/api/events/${slug}/quests`);
       if (res.ok) {
@@ -46,11 +46,12 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [slug]);
 
   useEffect(() => {
-    fetchQuests();
-  }, [slug]);
+    const initial = setTimeout(fetchQuests, 0);
+    return () => clearTimeout(initial);
+  }, [fetchQuests]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

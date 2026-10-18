@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { events, photos, tables, photoQuests } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { events, pendingUploads } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { getStorageProvider } from "@/lib/storage";
-import { validateMediaBuffer } from "@/lib/file-security";
+import { MAX_UPLOAD_BYTES, validateMediaBuffer } from "@/lib/file-security";
+import { createPhotoRecord, getUploadBlockReason } from "@/lib/uploads";
 import crypto from "crypto";
 
+const INVALID_MEDIA_ERROR =
+  "Arquivo inválido. Por favor envie uma foto (JPEG, PNG, WebP) ou clipe de vídeo (MP4, WebM, MOV).";
+
+// Keys are issued by /upload/presign as `<uuid>.<ext>`
+const DIRECT_UPLOAD_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|heic|mp4|webm|mov)$/;
+
+/**
+ * Publishes a Photo or Video Clip. Two modes:
+ * - JSON `{ key, ...metadata }`: step 2 of the direct upload flow. The browser already
+ *   PUT the file to object storage using a presigned URL; here we verify it and record it.
+ * - multipart/form-data with `file`: server-side upload (local development fallback).
+ */
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ slug: string }> }
@@ -18,138 +31,101 @@ export async function POST(
       return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
     }
 
-    // Check if uploads are closed manually or expired
-    if (event.isUploadClosed) {
-      return NextResponse.json(
-        { error: "O recebimento de fotos deste evento foi encerrado pelo anfitrião." },
-        { status: 403 }
-      );
+    const blockReason = getUploadBlockReason(event);
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 403 });
     }
 
-    if (event.uploadDeadline && new Date() > event.uploadDeadline) {
-      return NextResponse.json(
-        { error: "A janela de tempo para envio de fotos expirou." },
-        { status: 403 }
-      );
+    const headerSessionId = request.headers.get("x-guest-session-id");
+    const storage = getStorageProvider();
+
+    if (request.headers.get("content-type")?.includes("application/json")) {
+      const body = await request.json().catch(() => ({}));
+      const key = typeof body.key === "string" ? body.key : "";
+      if (!DIRECT_UPLOAD_KEY.test(key)) {
+        return NextResponse.json({ error: "Envio inválido." }, { status: 400 });
+      }
+
+      // Claim the key atomically: only keys issued for this Event, and only once
+      const [claimed] = await db
+        .delete(pendingUploads)
+        .where(and(eq(pendingUploads.key, key), eq(pendingUploads.eventId, event.id)))
+        .returning();
+      if (!claimed) {
+        return NextResponse.json({ error: "Envio expirado ou já publicado. Tente novamente." }, { status: 409 });
+      }
+
+      try {
+        const size = await storage.getFileSize(key);
+        if (size === null) {
+          // Nothing was uploaded; put the claim back so the Guest can retry the PUT
+          await db.insert(pendingUploads).values(claimed).onConflictDoNothing();
+          return NextResponse.json({ error: "Arquivo não encontrado. Tente enviar novamente." }, { status: 400 });
+        }
+
+        const head = await storage.readFileHead(key, 32);
+        const { valid, mediaType } = validateMediaBuffer(head);
+        if (size > MAX_UPLOAD_BYTES || !valid) {
+          await storage.deleteFile(key);
+          return NextResponse.json(
+            { error: size > MAX_UPLOAD_BYTES ? "O arquivo excede o tamanho máximo de 15MB" : INVALID_MEDIA_ERROR },
+            { status: 400 }
+          );
+        }
+
+        const result = await createPhotoRecord({
+          event,
+          storagePath: key,
+          url: storage.getPublicUrl(key),
+          mediaType,
+          metadata: { ...body, guestSessionId: body.guestSessionId || headerSessionId },
+        });
+        return NextResponse.json(result);
+      } catch (error) {
+        // Restore the claim so the cleanup cron still owns the file if nothing was published
+        await db.insert(pendingUploads).values(claimed).onConflictDoNothing().catch(() => {});
+        throw error;
+      }
     }
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    const tableId = formData.get("tableId") as string | null;
-    const guestName = formData.get("guestName") as string | null;
-    const message = formData.get("message") as string | null;
-    const rawMoment = formData.get("moment") as string | null;
-    const moment = typeof rawMoment === "string" && rawMoment.trim() ? rawMoment.trim().slice(0, 50) : null;
-    const rawSessionId =
-      (formData.get("guestSessionId") as string | null) ||
-      request.headers.get("x-guest-session-id") ||
-      "";
-    const guestSessionId =
-      typeof rawSessionId === "string" && rawSessionId.trim()
-        ? rawSessionId.trim().slice(0, 100)
-        : null;
 
     if (!file) {
       return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
     }
 
-    // Enforce 15MB maximum size limit
-    const MAX_SIZE = 15 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json({ error: "O arquivo excede o tamanho máximo de 15MB" }, { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(await file.arrayBuffer());
 
     // Validate magic bytes & extension (image or video clip)
     const { valid, mediaType, extension, mime } = validateMediaBuffer(buffer);
     if (!valid) {
-      return NextResponse.json(
-        { error: "Arquivo inválido. Por favor envie uma foto (JPEG, PNG, WebP) ou clipe de vídeo (MP4, WebM, MOV)." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: INVALID_MEDIA_ERROR }, { status: 400 });
     }
 
-    // Optional table check
-    let validTableId: string | null = null;
-    if (tableId) {
-      const [tableRecord] = await db
-        .select()
-        .from(tables)
-        .where(eq(tables.id, tableId))
-        .limit(1);
-      if (tableRecord && tableRecord.eventId === event.id) {
-        validTableId = tableRecord.id;
-      }
-    }
-
-    // Optional photo quest check
-    const questId = formData.get("questId") as string | null;
-    let validQuestId: string | null = null;
-    let validQuestTitle: string | null = null;
-    if (questId) {
-      const [questRecord] = await db
-        .select()
-        .from(photoQuests)
-        .where(eq(photoQuests.id, questId))
-        .limit(1);
-      if (questRecord && questRecord.eventId === event.id) {
-        validQuestId = questRecord.id;
-        validQuestTitle = questRecord.title;
-      }
-    }
-
-    // Safe random filename
     const uniqueFilename = `${crypto.randomUUID()}.${extension}`;
-
-    // Upload using storage provider
-    const storage = getStorageProvider();
     const { storagePath, url } = await storage.uploadFile(buffer, uniqueFilename, mime);
 
-    // Initial status according to moderation policy
-    const initialStatus = event.moderationPolicy === "approval_required" ? "pending" : "approved";
-
-    const photoId = crypto.randomUUID();
-    const now = new Date();
-
-    await db.insert(photos).values({
-      id: photoId,
-      eventId: event.id,
-      tableId: validTableId,
-      questId: validQuestId,
-      questTitle: validQuestTitle,
-      guestName: guestName ? guestName.trim().slice(0, 100) : null,
-      guestSessionId,
-      message: message ? message.trim().slice(0, 500) : null,
-      mediaType,
-      moment,
+    const field = (name: string) => formData.get(name) as string | null;
+    const result = await createPhotoRecord({
+      event,
       storagePath,
       url,
-      status: initialStatus,
-      createdAt: now,
-    });
-
-    return NextResponse.json({
-      success: true,
-      photo: {
-        id: photoId,
-        url,
-        status: initialStatus,
-        guestName,
-        message,
-        mediaType,
-        moment,
-        questId: validQuestId,
-        questTitle: validQuestTitle,
-        canDelete: true,
-        createdAt: now.toISOString(),
+      mediaType,
+      metadata: {
+        tableId: field("tableId"),
+        questId: field("questId"),
+        guestName: field("guestName"),
+        message: field("message"),
+        moment: field("moment"),
+        guestSessionId: field("guestSessionId") || headerSessionId,
       },
-      message:
-        initialStatus === "pending"
-          ? "Mídia enviada com sucesso! Aguardando aprovação do anfitrião."
-          : "Mídia publicada com sucesso na Live Gallery!",
     });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Falha ao processar o upload da foto." }, { status: 500 });

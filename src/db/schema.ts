@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 export const events = pgTable("events", {
   id: text("id").primaryKey(),
@@ -26,7 +26,7 @@ export const tables = pgTable("tables", {
   identifier: text("identifier").notNull(), // e.g. "Mesa 1", "Mesa dos Noivos"
   qrCodeDataUrl: text("qr_code_data_url"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
-});
+}, (table) => [index("tables_event_idx").on(table.eventId)]);
 
 export const photoQuests = pgTable("photo_quests", {
   id: text("id").primaryKey(),
@@ -38,7 +38,7 @@ export const photoQuests = pgTable("photo_quests", {
   icon: text("icon").default("🎯"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
-});
+}, (table) => [index("photo_quests_event_idx").on(table.eventId)]);
 
 export const photos = pgTable("photos", {
   id: text("id").primaryKey(),
@@ -65,7 +65,23 @@ export const photos = pgTable("photos", {
     .default("approved"),
   moment: text("moment"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
-});
+}, (table) => [
+  // Gallery/slideshow listing: WHERE event_id = ? AND status = ? ORDER BY created_at DESC
+  index("photos_event_status_created_idx").on(table.eventId, table.status, table.createdAt),
+]);
+
+/**
+ * Storage keys handed out by /upload/presign but not yet confirmed. Confirming requires
+ * a row here (binding the key to its Event); rows left behind are abandoned uploads
+ * whose files the cleanup cron deletes.
+ */
+export const pendingUploads = pgTable("pending_uploads", {
+  key: text("key").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull(),
+}, (table) => [index("pending_uploads_created_idx").on(table.createdAt)]);
 
 export const photoLikes = pgTable(
   "photo_likes",
@@ -91,7 +107,7 @@ export const photoComments = pgTable("photo_comments", {
   guestName: text("guest_name").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
-});
+}, (table) => [index("photo_comments_photo_created_idx").on(table.photoId, table.createdAt)]);
 
 export const chatMessages = pgTable("chat_messages", {
   id: text("id").primaryKey(),
@@ -103,7 +119,7 @@ export const chatMessages = pgTable("chat_messages", {
   tableIdentifier: text("table_identifier"),
   message: text("message").notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull(),
-});
+}, (table) => [index("chat_messages_event_created_idx").on(table.eventId, table.createdAt)]);
 
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;

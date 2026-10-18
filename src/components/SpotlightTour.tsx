@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Sparkles, ChevronRight, X, Check } from "lucide-react";
 
 export interface SpotlightStep {
@@ -126,7 +126,8 @@ export function SpotlightTour({
       }
     }
 
-    updateTargetPosition();
+    // Measure on the next frame so state is never set synchronously inside the effect
+    const frame = requestAnimationFrame(updateTargetPosition);
 
     const handleScrollOrResize = () => {
       updateTargetPosition();
@@ -142,6 +143,7 @@ export function SpotlightTour({
       window.removeEventListener("scroll", handleScrollOrResize);
       window.removeEventListener("resize", handleScrollOrResize);
       clearTimeout(checkTimer);
+      cancelAnimationFrame(frame);
     };
   }, [isActive, currentStep, currentStepIndex, updateTargetPosition]);
 

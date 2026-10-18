@@ -15,6 +15,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { compressImage } from "@/lib/client-compress";
+import { uploadMedia } from "@/lib/client-upload";
+import { ensureGuestSessionId, rememberMyPhoto, useGuestIdentity } from "@/hooks/useGuestIdentity";
 import {
   WeddingMomentConfig,
   DEFAULT_WEDDING_MOMENTS,
@@ -81,7 +83,10 @@ export function GuestUploadModal({
   const activeBlob = useVintagePreset ? (vintageBlob || rawBlob) : (rawBlob || vintageBlob);
   const activeCompressedSize = useVintagePreset ? (vintageSize || rawSize) : (rawSize || vintageSize);
 
-  const [guestName, setGuestName] = useState("");
+  // Name typed in this form; until edited, it shows the name remembered on this device
+  const { guestName: savedGuestName, setGuestName: saveGuestName } = useGuestIdentity();
+  const [guestNameDraft, setGuestNameDraft] = useState<string | null>(null);
+  const guestName = guestNameDraft ?? savedGuestName;
   const [message, setMessage] = useState("");
 
   const [quests, setQuests] = useState<Array<{ id: string; title: string; icon: string | null }>>([]);
@@ -131,16 +136,6 @@ export function GuestUploadModal({
     return () => window.removeEventListener("open-upload-modal", handleOpen);
   }, []);
 
-  // Pre-fill name from localStorage if previously stored
-  useEffect(() => {
-    if (isOpen) {
-      const savedName = localStorage.getItem("photo_party_guest_name");
-      if (savedName && !guestName) {
-        setGuestName(savedName);
-      }
-    }
-  }, [isOpen, guestName]);
-
   const [isCompressing, setIsCompressing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -157,10 +152,12 @@ export function GuestUploadModal({
     if (rawPreviewUrl) URL.revokeObjectURL(rawPreviewUrl);
   };
 
-  // Clean up object URLs on unmount
+  // Revoke superseded object URLs (and the current ones on unmount)
   useEffect(() => {
     return () => {
-      cleanupUrls();
+      if (initialPreviewUrl) URL.revokeObjectURL(initialPreviewUrl);
+      if (vintagePreviewUrl) URL.revokeObjectURL(vintagePreviewUrl);
+      if (rawPreviewUrl) URL.revokeObjectURL(rawPreviewUrl);
     };
   }, [initialPreviewUrl, vintagePreviewUrl, rawPreviewUrl]);
 
@@ -207,7 +204,7 @@ export function GuestUploadModal({
         setVintagePreviewUrl(initUrl);
         setRawPreviewUrl(initUrl);
         return;
-      } catch (err) {
+      } catch {
         setErrorMessage("Não foi possível carregar os metadados do vídeo. Verifique se o formato é válido.");
         return;
       }
@@ -263,9 +260,7 @@ export function GuestUploadModal({
     setUploadProgress(0);
     setSelectedQuestId(null);
     setShowAdvancedOptions(false);
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-    if (videoInputRef.current) videoInputRef.current.value = "";
-    if (galleryInputRef.current) galleryInputRef.current.value = "";
+    // File inputs need no reset: handleFileChange clears their value on every pick
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -277,63 +272,32 @@ export function GuestUploadModal({
 
     try {
       setIsUploading(true);
-      setUploadProgress(20);
+      setUploadProgress(5);
       setErrorMessage(null);
 
-      // Ensure stable guest session ID
-      let sId = localStorage.getItem("photo_party_guest_id");
-      if (!sId) {
-        sId = crypto.randomUUID();
-        localStorage.setItem("photo_party_guest_id", sId);
-      }
-
+      const sId = ensureGuestSessionId();
       if (guestName.trim()) {
-        localStorage.setItem("photo_party_guest_name", guestName.trim());
+        saveGuestName(guestName.trim());
       }
 
-      const formData = new FormData();
-      formData.append(
-        "file",
-        activeBlob,
-        file?.name || (isVideo ? "clip.mp4" : "photo.webp")
-      );
-      formData.append("guestSessionId", sId);
-      if (tableId) formData.append("tableId", tableId);
-      if (selectedQuestId) formData.append("questId", selectedQuestId);
-      if (selectedMoment) formData.append("moment", selectedMoment);
-      if (guestName.trim()) formData.append("guestName", guestName.trim());
-      if (message.trim()) formData.append("message", message.trim());
-
-      setUploadProgress(50);
-
-      const response = await fetch(`/api/events/${slug}/upload`, {
-        method: "POST",
-        headers: {
-          "x-guest-session-id": sId,
+      const data = await uploadMedia({
+        slug,
+        blob: activeBlob,
+        filename: file?.name || (isVideo ? "clip.mp4" : "photo.webp"),
+        guestSessionId: sId,
+        fields: {
+          tableId,
+          questId: selectedQuestId,
+          moment: selectedMoment,
+          guestName: guestName.trim(),
+          message: message.trim(),
         },
-        body: formData,
+        onProgress: (fraction) => setUploadProgress(Math.max(5, Math.round(fraction * 95))),
       });
-
-      setUploadProgress(90);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao publicar a mídia.");
-      }
 
       // Record uploaded photo ID for instant local ownership tracking
       if (data.photo?.id) {
-        try {
-          const stored = JSON.parse(localStorage.getItem("photo_party_my_photos") || "[]");
-          if (Array.isArray(stored)) {
-            localStorage.setItem(
-              "photo_party_my_photos",
-              JSON.stringify([...stored, data.photo.id])
-            );
-          }
-        } catch (e) {
-          // ignore
-        }
+        rememberMyPhoto(data.photo.id);
       }
 
       setUploadProgress(100);
@@ -717,7 +681,7 @@ export function GuestUploadModal({
                       <input
                         type="text"
                         value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
+                        onChange={(e) => setGuestNameDraft(e.target.value)}
                         placeholder="Ex: Tio Pedro, Sarah ou Família Silva"
                         maxLength={100}
                         className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] focus:ring-1 focus:ring-[#cb7d87] text-sm text-gray-900 placeholder:text-gray-400"

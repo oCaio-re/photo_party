@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   Camera,
   HelpCircle,
@@ -10,6 +10,9 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { useStoredValue, writeStoredValue } from "@/hooks/useGuestIdentity";
+
+const COLLAPSED_KEY = "photo_party_welcome_collapsed";
 import { openHowItWorksGuide } from "./HowItWorksModal";
 import { startSpotlightTour } from "./SpotlightTour";
 
@@ -24,29 +27,10 @@ export function GuestWelcomeCard({
   onTakePhoto,
   className = "",
 }: GuestWelcomeCardProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("photo_party_welcome_collapsed");
-      if (saved === "true") {
-        setIsCollapsed(true);
-      }
-    } catch {
-      // Ignore localStorage read errors in private browsing/restricted environments
-    }
-  }, []);
+  const isCollapsed = useStoredValue(COLLAPSED_KEY) === "true";
 
   const toggleCollapse = () => {
-    setIsCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("photo_party_welcome_collapsed", String(next));
-      } catch {
-        // Ignore localStorage write errors
-      }
-      return next;
-    });
+    writeStoredValue(COLLAPSED_KEY, String(!isCollapsed));
   };
 
   const handleOpenUpload = () => {

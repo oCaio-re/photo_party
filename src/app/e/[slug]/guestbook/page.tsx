@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events, tables, photos } from "@/db/schema";
 import { eq, and, asc, sql } from "drizzle-orm";
 import { generateQrCodeDataUrl } from "@/lib/qrcode";
@@ -14,7 +14,6 @@ interface GuestbookPageProps {
 export default async function GuestbookPage({ params }: GuestbookPageProps) {
   const { slug } = await params;
 
-  await ensureSchema();
 
   const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
   if (!event) {

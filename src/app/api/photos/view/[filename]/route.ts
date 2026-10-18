@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStorageProvider } from "@/lib/storage";
+import { mimeForFilename } from "@/lib/file-security";
+import { Readable } from "stream";
 import path from "path";
 
 export async function GET(
@@ -10,29 +12,32 @@ export async function GET(
     const { filename } = await context.params;
     const safeFilename = path.basename(filename);
 
+    // iOS Safari only plays <video> when the server honours byte ranges (206)
+    const range = request.headers.get("range");
     const storage = getStorageProvider();
-    const stream = await storage.getFileStream(safeFilename);
+    const file = await storage.getFile(safeFilename, range);
 
-    let contentType = "image/jpeg";
-    if (safeFilename.endsWith(".png")) contentType = "image/png";
-    if (safeFilename.endsWith(".webp")) contentType = "image/webp";
+    const headers: Record<string, string> = {
+      "Content-Type": mimeForFilename(safeFilename),
+      "Accept-Ranges": "bytes",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    };
+    if (file.contentLength !== undefined) {
+      headers["Content-Length"] = String(file.contentLength);
+    }
+    if (file.contentRange) {
+      headers["Content-Range"] = file.contentRange;
+    }
 
-    const webStream = new ReadableStream({
-      start(controller) {
-        stream.on("data", (chunk) => controller.enqueue(chunk));
-        stream.on("end", () => controller.close());
-        stream.on("error", (err) => controller.error(err));
-      },
-    });
-
-    return new Response(webStream, {
-      headers: {
-        "Content-Type": contentType,
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
+    return new Response(Readable.toWeb(file.body) as ReadableStream, {
+      status: file.contentRange ? 206 : 200,
+      headers,
     });
   } catch (error) {
+    if ((error as { name?: string })?.name === "InvalidRange") {
+      return new NextResponse(null, { status: 416 });
+    }
     console.error("View photo error:", error);
     return new NextResponse("Foto não encontrada", { status: 404 });
   }

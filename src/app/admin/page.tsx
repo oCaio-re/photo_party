@@ -1,4 +1,4 @@
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events, tables, photos } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { parseMomentsConfig } from "@/lib/moments";
@@ -9,7 +9,6 @@ import { HostAdminClient } from "@/app/e/[slug]/admin/HostAdminClient";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  await ensureSchema();
   const session = await getAdminSession();
 
   if (!session) {

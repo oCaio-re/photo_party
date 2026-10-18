@@ -21,8 +21,6 @@ interface TableCardsPrinterProps {
 export function TableCardsPrinter({
   eventTitle,
   tables,
-  genericQr,
-  genericUrl,
 }: TableCardsPrinterProps) {
   const handlePrint = () => {
     window.print();

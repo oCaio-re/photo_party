@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { db, ensureSchema } from "@/db";
-import { events, tables, photos } from "@/db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { events, tables } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { getGalleryFacets, listEventPhotos } from "@/lib/photo-queries";
 import { GuestUploadModal } from "@/components/GuestUploadModal";
 import { LiveGalleryView, PhotoItem } from "@/components/LiveGalleryView";
 import { parseMomentsConfig } from "@/lib/moments";
@@ -18,7 +19,6 @@ export default async function EventPage({ params, searchParams }: EventPageProps
   const { slug } = await params;
   const { table: tableParam } = await searchParams;
 
-  await ensureSchema();
 
   const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
   if (!event) {
@@ -41,28 +41,11 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     }
   }
 
-  // Initial approved photos
-  const rawPhotos = await db
-    .select({
-      id: photos.id,
-      url: photos.url,
-      guestName: photos.guestName,
-      message: photos.message,
-      status: photos.status,
-      createdAt: photos.createdAt,
-      tableId: photos.tableId,
-      tableIdentifier: tables.identifier,
-      questId: photos.questId,
-      questTitle: photos.questTitle,
-      mediaType: photos.mediaType,
-      moment: photos.moment,
-      likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
-      commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
-    })
-    .from(photos)
-    .leftJoin(tables, eq(photos.tableId, tables.id))
-    .where(and(eq(photos.eventId, event.id), eq(photos.status, "approved")))
-    .orderBy(desc(photos.createdAt));
+  // First page of approved photos; the gallery loads older pages on scroll
+  const [{ photos: rawPhotos, nextCursor }, facets] = await Promise.all([
+    listEventPhotos({ eventId: event.id, status: "approved" }),
+    getGalleryFacets(event.id),
+  ]);
 
   const formattedPhotos: PhotoItem[] = rawPhotos.map((p) => ({
     id: p.id,
@@ -70,12 +53,12 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     guestName: p.guestName,
     message: p.message,
     status: p.status,
-    createdAt: p.createdAt ? new Date(p.createdAt).getTime() : 0,
+    createdAt: p.createdAt.getTime(),
     tableId: p.tableId,
     tableIdentifier: p.tableIdentifier,
     questId: p.questId,
     questTitle: p.questTitle,
-    mediaType: (p.mediaType as "photo" | "video") || "photo",
+    mediaType: p.mediaType,
     moment: p.moment,
     likeCount: p.likeCount || 0,
     commentCount: p.commentCount || 0,
@@ -106,6 +89,8 @@ export default async function EventPage({ params, searchParams }: EventPageProps
           title={event.title}
           tableName={currentTable?.identifier}
           initialPhotos={formattedPhotos}
+          initialCursor={nextCursor}
+          initialFacets={facets}
           momentsConfig={moments}
         />
       </div>

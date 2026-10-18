@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events, chatMessages } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -16,7 +16,6 @@ export async function DELETE(
   context: { params: Promise<{ slug: string; messageId: string }> }
 ) {
   try {
-    await ensureSchema();
     const { slug, messageId } = await context.params;
 
     const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);

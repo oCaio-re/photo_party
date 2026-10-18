@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { db, ensureSchema } from "@/db";
+import { db } from "@/db";
 import { events, tables, photos } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { parseMomentsConfig } from "@/lib/moments";
@@ -17,7 +17,6 @@ export default async function AdminPage({ params, searchParams }: AdminPageProps
   const { slug } = await params;
   const { key } = await searchParams;
 
-  await ensureSchema();
   const session = await getAdminSession();
 
   const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);

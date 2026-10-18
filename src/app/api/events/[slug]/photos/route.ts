@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { events, photos, tables, photoComments } from "@/db/schema";
-import { eq, and, gt, desc, sql, inArray } from "drizzle-orm";
+import { events } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { parseMomentsConfig } from "@/lib/moments";
+import { ADMIN_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import {
+  getGalleryFacets,
+  getRecentCommentsByPhoto,
+  listEventPhotos,
+  type PhotoStatus,
+} from "@/lib/photo-queries";
 
+function parseTimestamp(value: string | null): Date | null {
+  if (!value) return null;
+  const date = new Date(Number(value));
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Query params:
+ * - `since`  (ms): only photos newer than this — cheap incremental polling
+ * - `cursor`: pagination cursor, the `nextCursor` of the previous page
+ * - `limit`: page size (default 120, max 500)
+ * - filters: `table` (identifier), `quest` (title), `moment` (id), `media=video|photo`, `quests=1`
+ * - `sort=likes`: most liked first (default: newest first)
+ * - `comments=1`: include the latest comments per photo (slideshow)
+ * - `status`: host only — 'approved' | 'pending' | 'hidden' | 'all'
+ * The first page (no `since`/`cursor`) also carries Event-wide `facets` for the gallery.
+ */
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ slug: string }> }
@@ -21,104 +45,58 @@ export async function GET(
     const authHeader = request.headers.get("authorization");
     const keyParam = searchParams.get("key");
     const providedKey = authHeader?.replace(/^Bearer\s+/i, "") || keyParam;
-    const token = request.cookies.get("photo_party_admin_session")?.value;
-    const isHost = (providedKey && providedKey === event.hostKey) || Boolean(token);
+    const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const isHost =
+      Boolean(providedKey && providedKey === event.hostKey) || Boolean(token && verifySessionToken(token));
 
     const guestSessionId =
       request.headers.get("x-guest-session-id") ||
       searchParams.get("guestSessionId") ||
       "";
 
-    const requestedStatus = searchParams.get("status"); // 'approved' | 'pending' | 'hidden' | 'all'
-    const sinceParam = searchParams.get("since");
-    const sinceDate = sinceParam ? new Date(Number(sinceParam)) : null;
-
-    // Base query
-    const conditions = [eq(photos.eventId, event.id)];
-
-    if (sinceDate && !isNaN(sinceDate.getTime())) {
-      conditions.push(gt(photos.createdAt, sinceDate));
-    }
-
+    const requestedStatus = searchParams.get("status");
+    let status: PhotoStatus | undefined = "approved"; // Guests only see approved photos
     if (isHost && requestedStatus) {
-      if (requestedStatus !== "all") {
-        conditions.push(eq(photos.status, requestedStatus as "approved" | "pending" | "hidden"));
-      }
-    } else {
-      // Guests only see approved photos
-      conditions.push(eq(photos.status, "approved"));
+      status = requestedStatus === "all" ? undefined : (requestedStatus as PhotoStatus);
     }
 
-    const results = await db
-      .select({
-        id: photos.id,
-        url: photos.url,
-        guestName: photos.guestName,
-        message: photos.message,
-        status: photos.status,
-        createdAt: photos.createdAt,
-        tableId: photos.tableId,
-        tableIdentifier: tables.identifier,
-        questId: photos.questId,
-        questTitle: photos.questTitle,
-        mediaType: photos.mediaType,
-        moment: photos.moment,
-        guestSessionId: photos.guestSessionId,
-        likeCount: sql<number>`(SELECT COUNT(*) FROM photo_likes WHERE photo_likes.photo_id = ${photos.id})`.mapWith(Number),
-        commentCount: sql<number>`(SELECT COUNT(*) FROM photo_comments WHERE photo_comments.photo_id = ${photos.id})`.mapWith(Number),
-        hasLiked: guestSessionId
-          ? sql<boolean>`EXISTS(SELECT 1 FROM photo_likes WHERE photo_likes.photo_id = ${photos.id} AND photo_likes.guest_session_id = ${guestSessionId})`.mapWith(Boolean)
-          : sql<boolean>`false`.mapWith(Boolean),
-      })
-      .from(photos)
-      .leftJoin(tables, eq(photos.tableId, tables.id))
-      .where(and(...conditions))
-      .orderBy(desc(photos.createdAt));
+    const limitParam = Number(searchParams.get("limit"));
+    const since = parseTimestamp(searchParams.get("since"));
+    const cursor = searchParams.get("cursor");
+    const media = searchParams.get("media");
+    const { photos: results, nextCursor } = await listEventPhotos({
+      eventId: event.id,
+      status,
+      since,
+      cursor,
+      tableIdentifier: searchParams.get("table"),
+      questTitle: searchParams.get("quest"),
+      moment: searchParams.get("moment"),
+      mediaType: media === "video" || media === "photo" ? media : null,
+      hasQuest: searchParams.get("quests") === "1",
+      sort: searchParams.get("sort") === "likes" ? "likes" : "recent",
+      limit: Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined,
+      guestSessionId,
+    });
 
-    const photoIds = results.map((p) => p.id);
-    const commentsByPhoto = new Map<
-      string,
-      Array<{ id: string; guestName: string; content: string; createdAt: Date }>
-    >();
-
-    if (photoIds.length > 0) {
-      const allRecentComments = await db
-        .select({
-          id: photoComments.id,
-          photoId: photoComments.photoId,
-          guestName: photoComments.guestName,
-          content: photoComments.content,
-          createdAt: photoComments.createdAt,
-        })
-        .from(photoComments)
-        .where(inArray(photoComments.photoId, photoIds))
-        .orderBy(desc(photoComments.createdAt));
-
-      for (const c of allRecentComments) {
-        const list = commentsByPhoto.get(c.photoId) || [];
-        if (list.length < 4) {
-          list.push({
-            id: c.id,
-            guestName: c.guestName,
-            content: c.content,
-            createdAt: c.createdAt,
-          });
-          commentsByPhoto.set(c.photoId, list);
-        }
-      }
-    }
+    const commentsByPhoto =
+      searchParams.get("comments") === "1"
+        ? await getRecentCommentsByPhoto(results.map((p) => p.id))
+        : null;
 
     const photosWithComments = results.map((p) => {
       const { guestSessionId: photoOwnerSessionId, ...safeProps } = p;
       return {
         ...safeProps,
         canDelete: isHost || (Boolean(guestSessionId) && photoOwnerSessionId === guestSessionId),
-        recentComments: commentsByPhoto.get(p.id) || [],
+        ...(commentsByPhoto ? { recentComments: commentsByPhoto.get(p.id) || [] } : {}),
       };
     });
 
     return NextResponse.json({
       photos: photosWithComments,
+      nextCursor,
+      ...(!since && !cursor ? { facets: await getGalleryFacets(event.id) } : {}),
       timestamp: Date.now(),
       event: {
         title: event.title,

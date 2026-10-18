@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useRef } from "react";
+import React from "react";
 import Link from "next/link";
 import { MonogramLogo } from "@/components/MonogramLogo";
-import { Printer, ArrowLeft, Heart, MessageSquare, Video, Sparkles, QrCode } from "lucide-react";
+import { Printer, ArrowLeft, Heart, MessageSquare, Video, Sparkles } from "lucide-react";
 
 export interface GuestbookEntry {
   id: string;
@@ -31,7 +31,6 @@ export function GuestbookClient({
   slug,
   eventTitle,
   entries,
-  eventQrCodeUrl,
   formattedEventDate,
 }: GuestbookClientProps) {
   const handlePrint = () => {
@@ -113,7 +112,7 @@ export function GuestbookClient({
           </div>
         ) : (
           <section className="py-10 space-y-8 sm:space-y-12">
-            {entries.map((entry, idx) => (
+            {entries.map((entry) => (
               <article
                 key={entry.id}
                 className="bg-white rounded-3xl border border-[#cb7d87]/20 p-5 sm:p-7 shadow-xs print:shadow-none print:border-gray-200 print:rounded-2xl print:break-inside-avoid print:my-6 transition-all"
