@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Dialog } from "@/components/ui/Dialog";
 
 interface DeletePhotoDialogProps {
   isDeleting: boolean;
@@ -11,29 +12,42 @@ interface DeletePhotoDialogProps {
 
 export function DeletePhotoDialog({ isDeleting, error, onConfirm, onCancel }: DeletePhotoDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center">
-        <h4 className="text-lg font-bold text-gray-900">Apagar Foto?</h4>
-        <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-          Esta ação removerá a foto permanentemente da galeria do evento.
+    <Dialog
+      onRequestClose={() => {
+        if (!isDeleting) onCancel();
+      }}
+      labelledBy="delete-photo-title"
+      className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center"
+    >
+      <h4 id="delete-photo-title" className="text-lg font-bold text-gray-900">
+        Apagar esta foto?
+      </h4>
+      <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+        Ela sai da galeria e do telão para todos. Não dá para desfazer.
+      </p>
+      {error && (
+        <p role="alert" className="text-sm text-rose-700 mt-3 font-medium">
+          {error}
         </p>
-        {error && <p className="text-xs text-rose-600 mt-2 font-medium">{error}</p>}
-        <div className="flex items-center gap-3 mt-5">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-2.5 rounded-full border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="flex-1 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold disabled:opacity-50"
-          >
-            {isDeleting ? "Apagando..." : "Sim, apagar"}
-          </button>
-        </div>
+      )}
+      <div className="flex items-center gap-3 mt-5">
+        <button
+          type="button"
+          data-autofocus
+          onClick={onCancel}
+          className="flex-1 py-3 rounded-full border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50"
+        >
+          Manter foto
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={isDeleting}
+          className="flex-1 py-3 rounded-full bg-rose-700 hover:bg-rose-800 text-white text-sm font-semibold disabled:opacity-60"
+        >
+          {isDeleting ? "Apagando…" : "Apagar"}
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

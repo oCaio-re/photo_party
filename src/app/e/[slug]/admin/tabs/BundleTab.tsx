@@ -41,7 +41,7 @@ export function BundleTab({ slug, hostKey }: BundleTabProps) {
 
   return (
     <div className="bg-white border border-gray-100 rounded-3xl p-5 sm:p-8 text-center max-w-xl mx-auto shadow-sm">
-      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-rose-50 flex items-center justify-center text-[#cb7d87] mx-auto mb-4 ring-4 ring-[#cb7d87]/15">
+      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-rose-50 flex items-center justify-center text-marsala-ink mx-auto mb-4 ring-4 ring-[#cb7d87]/15">
         <Download className="w-7 h-7 sm:w-8 sm:h-8" />
       </div>
 
@@ -53,7 +53,7 @@ export function BundleTab({ slug, hostKey }: BundleTabProps) {
       {loadError && <p className="text-xs text-red-600 bg-red-50 p-2.5 rounded-xl mb-4">{loadError}</p>}
 
       {!info && !loadError && (
-        <div className="flex justify-center text-gray-400">
+        <div className="flex justify-center text-gray-500">
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       )}
@@ -66,7 +66,7 @@ export function BundleTab({ slug, hostKey }: BundleTabProps) {
         <a
           href={partHref(1)}
           download
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] text-white px-6 sm:px-8 py-3.5 rounded-2xl font-semibold text-sm shadow-md shadow-[#cb7d87]/25 transition-all active:scale-95 cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-marsala-ink hover:bg-marsala-ink-hover text-white px-6 sm:px-8 py-3.5 rounded-2xl font-semibold text-sm shadow-md shadow-[#cb7d87]/25 transition-all active:scale-95 cursor-pointer"
         >
           <Download className="w-4 h-4" />
           <span>Baixar Todas as Fotos (.ZIP)</span>
@@ -89,7 +89,7 @@ export function BundleTab({ slug, hostKey }: BundleTabProps) {
                 className="w-full flex items-center justify-between gap-2 bg-rose-50 hover:bg-rose-100 text-[#832d3b] px-4 py-3 rounded-2xl font-semibold text-xs transition-all cursor-pointer"
               >
                 <span className="flex items-center gap-2">
-                  <Download className="w-4 h-4 text-[#cb7d87]" />
+                  <Download className="w-4 h-4 text-marsala-ink" />
                   Parte {part} de {info.totalParts}
                   {part === 1 && <span className="font-normal text-gray-500">(inclui dedicatórias)</span>}
                 </span>

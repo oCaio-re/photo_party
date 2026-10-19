@@ -29,7 +29,7 @@ export default async function AdminPage({ params, searchParams }: AdminPageProps
   );
 
   if (!isAuthorized) {
-    redirect("/admin");
+    redirect("/");
   }
 
   // Initial data

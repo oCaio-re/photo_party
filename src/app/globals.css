@@ -5,9 +5,14 @@
   --color-marsala-light: #dfa4ac;
   --color-marsala-dark: #b86a76;
   --color-marsala-deep: #832d3b;
+  /* AA-safe rosé for text and for fills behind white text (#cb7d87 stays for borders and tints) */
+  --color-marsala-ink: #a3525f;
+  --color-marsala-ink-hover: #8f4350;
   --color-sage: #5a6248;
   --color-sage-dark: #49503b;
   --color-sage-light: #7c8764;
+  /* AA-safe sage for secondary text on cream */
+  --color-sage-ink: #5f6a4c;
   --color-cream: #fbead6;
   --color-cream-light: #fffaf5;
   --color-cream-card: #fdf5ec;
@@ -123,3 +128,23 @@ h1, h2, h3, h4, .font-serif, .font-heading {
   scrollbar-width: none;  /* Firefox */
 }
 
+
+/* Reduced motion: keep state changes, drop decorative loops and entrances */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce,
+  .animate-fade-in,
+  .animate-scale-in {
+    animation: none !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Visible keyboard focus everywhere, in the brand ink */
+:focus-visible {
+  outline: 3px solid var(--color-marsala-ink);
+  outline-offset: 2px;
+}

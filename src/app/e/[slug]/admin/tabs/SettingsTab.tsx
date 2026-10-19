@@ -37,7 +37,7 @@ export function SettingsTab({ slug, hostKey, isUploadClosed, moderationPolicy, o
   return (
     <div className="bg-white border border-gray-100 rounded-3xl p-5 sm:p-8 max-w-xl mx-auto shadow-sm space-y-6">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="w-5 h-5 text-[#cb7d87]" />
+        <ShieldCheck className="w-5 h-5 text-marsala-ink" />
         <h3 className="text-lg sm:text-xl font-bold text-gray-900">Configurações do Evento</h3>
       </div>
 
@@ -68,7 +68,7 @@ export function SettingsTab({ slug, hostKey, isUploadClosed, moderationPolicy, o
         <select
           value={moderationPolicy}
           onChange={(e) => handleChangePolicy(e.target.value as ModerationPolicy)}
-          className="w-full sm:w-auto px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs font-medium text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#cb7d87]"
+          className="w-full sm:w-auto px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs font-medium text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-marsala-ink"
         >
           <option value="immediate">Publicação Direta</option>
           <option value="approval_required">Aprovação Obrigatória</option>
@@ -92,7 +92,7 @@ export function SettingsTab({ slug, hostKey, isUploadClosed, moderationPolicy, o
               setCopiedKey(true);
               setTimeout(() => setCopiedKey(false), 2000);
             }}
-            className="w-full sm:w-auto px-4 py-2.5 bg-[#cb7d87] hover:bg-[#b86a76] text-white rounded-xl text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs text-center"
+            className="w-full sm:w-auto px-4 py-2.5 bg-marsala-ink hover:bg-marsala-ink-hover text-white rounded-xl text-xs font-semibold shrink-0 cursor-pointer transition-colors shadow-xs text-center"
           >
             {copiedKey ? "Copiado!" : "Copiar"}
           </button>

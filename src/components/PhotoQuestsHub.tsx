@@ -65,7 +65,7 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
     <div className="space-y-6 animate-fade-in bg-white">
       {/* Quests Header Card */}
       <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center relative overflow-hidden shadow-sm">
-        <div className="inline-flex items-center justify-center p-3 rounded-full bg-rose-50 mb-3 text-[#cb7d87]">
+        <div className="inline-flex items-center justify-center p-3 rounded-full bg-rose-50 mb-3 text-marsala-ink">
           <span className="text-3xl">🎯</span>
         </div>
         <h2 className="text-2xl sm:text-3xl text-gray-900 font-bold tracking-tight">
@@ -79,15 +79,15 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
         <div className="flex items-center justify-center gap-3 mt-4 pt-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-medium shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>{quests.length} Missões Disponíveis</span>
+            <span>{quests.length} {quests.length === 1 ? "desafio disponível" : "desafios disponíveis"}</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-[#cb7d87] rounded-full text-xs font-semibold border border-rose-100">
-            <CheckCircle className="w-3.5 h-3.5 text-[#cb7d87]" />
-            <span>{totalCompleted} Fotos Enviadas</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-marsala-ink rounded-full text-xs font-semibold border border-rose-100">
+            <CheckCircle className="w-3.5 h-3.5 text-marsala-ink" />
+            <span>{totalCompleted} {totalCompleted === 1 ? "foto enviada" : "fotos enviadas"}</span>
           </div>
           <button
             onClick={handleRefresh}
-            className="p-1.5 text-gray-600 hover:text-[#cb7d87] bg-gray-50 rounded-full border border-gray-200 transition-transform active:rotate-180"
+            className="p-1.5 text-gray-600 hover:text-marsala-ink bg-gray-50 rounded-full border border-gray-200 transition-transform active:rotate-180"
             title="Atualizar desafios"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -108,7 +108,7 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
       ) : quests.length === 0 ? (
         <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center max-w-md mx-auto">
           <p className="text-base font-semibold text-gray-900">Nenhum desafio ativo no momento.</p>
-          <p className="text-xs text-gray-400 mt-1">O anfitrião pode adicionar desafios no Painel.</p>
+          <p className="text-xs text-gray-500 mt-1">O anfitrião pode adicionar desafios no Painel.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -127,7 +127,7 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
                       <span>✓ {quest.completedCount} foto{quest.completedCount > 1 ? "s" : ""}</span>
                     </span>
                   ) : (
-                    <span className="text-[10px] uppercase tracking-wider text-[#cb7d87] font-semibold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                    <span className="text-[11px] uppercase tracking-wider text-marsala-ink font-semibold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
                       Seja o primeiro!
                     </span>
                   )}
@@ -151,7 +151,7 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
                     if (onFulfillQuest) onFulfillQuest(quest);
                     triggerQuestFulfill(quest);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-white py-2.5 px-3 rounded-xl text-xs font-semibold tracking-wide transition-all shadow-xs"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-marsala-ink hover:bg-marsala-ink-hover active:scale-95 text-white py-2.5 px-3 rounded-xl text-xs font-semibold tracking-wide transition-all shadow-xs"
                 >
                   <Camera className="w-3.5 h-3.5 text-white" />
                   <span>Cumprir Desafio</span>
@@ -161,7 +161,7 @@ export function PhotoQuestsHub({ slug, onFulfillQuest, onFilterByQuest }: PhotoQ
                   <button
                     type="button"
                     onClick={() => onFilterByQuest(quest.title)}
-                    className="p-2.5 bg-gray-50 hover:bg-gray-100 active:scale-95 text-gray-600 hover:text-[#cb7d87] rounded-xl border border-gray-200 transition-colors"
+                    className="p-2.5 bg-gray-50 hover:bg-gray-100 active:scale-95 text-gray-600 hover:text-marsala-ink rounded-xl border border-gray-200 transition-colors"
                     title="Ver fotos deste desafio"
                     aria-label="Ver fotos"
                   >

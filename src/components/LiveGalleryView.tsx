@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { X, ChevronLeft, Plus, Clock, Camera, Loader2 } from "lucide-react";
 import { EventHeroHeader } from "@/components/EventHeroHeader";
 import { PhotoQuestsHub } from "@/components/PhotoQuestsHub";
@@ -38,6 +39,8 @@ export interface PhotoItem {
   commentCount?: number;
   hasLiked?: boolean;
   canDelete?: boolean;
+  /** Placeholder shown while the Event has no photos yet; never sent to the API. */
+  isSample?: boolean;
 }
 
 export interface CommentItem {
@@ -51,6 +54,22 @@ export interface CommentItem {
 
 type MainTab = "hub" | "gallery" | "quests" | "chat";
 
+// Tabs live in the URL (?aba=) so the phone's back gesture moves between them instead of leaving the Event
+const TAB_PARAM = "aba";
+const TAB_SLUGS: Record<Exclude<MainTab, "hub">, string> = { gallery: "fotos", quests: "desafios", chat: "recados" };
+
+function tabFromParam(value: string | null): MainTab {
+  const match = (Object.entries(TAB_SLUGS) as Array<[MainTab, string]>).find(([, slug]) => slug === value);
+  return match ? match[0] : "hub";
+}
+
+function urlForTab(tab: MainTab): string {
+  const url = new URL(window.location.href);
+  if (tab === "hub") url.searchParams.delete(TAB_PARAM);
+  else url.searchParams.set(TAB_PARAM, TAB_SLUGS[tab]);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 interface LiveGalleryViewProps {
   slug: string;
   title?: string;
@@ -63,7 +82,7 @@ interface LiveGalleryViewProps {
   momentsConfig?: WeddingMomentConfig[];
 }
 
-// Curated stock photos as default until real photos are uploaded (requested by user)
+// Sample photos shown (and labelled "Exemplo") until the first real photo arrives; no invented engagement
 const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
   {
     id: "stock-1",
@@ -75,8 +94,9 @@ const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
     createdAt: new Date("2026-12-11T20:55:00-03:00").getTime(),
     tableId: null,
     tableIdentifier: "Mesa 01",
-    likeCount: 18,
-    commentCount: 4,
+    likeCount: 0,
+    commentCount: 0,
+    isSample: true,
   },
   {
     id: "stock-2",
@@ -88,8 +108,9 @@ const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
     createdAt: new Date("2026-12-11T21:05:00-03:00").getTime(),
     tableId: null,
     tableIdentifier: "Mesa 02",
-    likeCount: 34,
-    commentCount: 7,
+    likeCount: 0,
+    commentCount: 0,
+    isSample: true,
   },
   {
     id: "stock-3",
@@ -101,8 +122,9 @@ const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
     createdAt: new Date("2026-12-11T21:20:00-03:00").getTime(),
     tableId: null,
     tableIdentifier: "Pista",
-    likeCount: 22,
-    commentCount: 3,
+    likeCount: 0,
+    commentCount: 0,
+    isSample: true,
   },
   {
     id: "stock-4",
@@ -114,8 +136,9 @@ const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
     createdAt: new Date("2026-12-11T22:00:00-03:00").getTime(),
     tableId: null,
     tableIdentifier: "Decoração",
-    likeCount: 45,
-    commentCount: 9,
+    likeCount: 0,
+    commentCount: 0,
+    isSample: true,
   },
   {
     id: "stock-5",
@@ -127,8 +150,9 @@ const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
     createdAt: new Date("2026-12-11T22:55:00-03:00").getTime(),
     tableId: null,
     tableIdentifier: "Alianças",
-    likeCount: 29,
-    commentCount: 5,
+    likeCount: 0,
+    commentCount: 0,
+    isSample: true,
   },
   {
     id: "stock-6",
@@ -140,8 +164,9 @@ const DEFAULT_STOCK_PHOTOS: PhotoItem[] = [
     createdAt: new Date("2026-12-11T23:15:00-03:00").getTime(),
     tableId: null,
     tableIdentifier: "Família",
-    likeCount: 52,
-    commentCount: 11,
+    likeCount: 0,
+    commentCount: 0,
+    isSample: true,
   },
 ];
 
@@ -250,7 +275,27 @@ export function LiveGalleryView({
     });
   const { guestSessionId, guestName, setGuestName, myUploadedPhotoIds, forgetMyPhoto } = useGuestIdentity();
 
-  const [mainTab, setMainTab] = useState<MainTab>("hub");
+  const searchParams = useSearchParams();
+  const mainTab = tabFromParam(searchParams.get(TAB_PARAM));
+  // True while the current tab was opened from inside the app, so "back" can pop history
+  const openedInAppRef = useRef(false);
+
+  const setMainTab = useCallback((tab: MainTab) => {
+    if (tab === tabFromParam(new URLSearchParams(window.location.search).get(TAB_PARAM))) return;
+    window.history.pushState(null, "", urlForTab(tab));
+    openedInAppRef.current = tab !== "hub";
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  const goToHub = useCallback(() => {
+    if (openedInAppRef.current) {
+      openedInAppRef.current = false;
+      window.history.back();
+    } else {
+      // Arrived straight on a tab (shared link): replace so back still leaves as expected
+      window.history.replaceState(null, "", urlForTab("hub"));
+    }
+  }, []);
   const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
   const [showChatNameDialog, setShowChatNameDialog] = useState(false);
 
@@ -261,8 +306,6 @@ export function LiveGalleryView({
 
   // Double tap heart animation
   const [animatingHeartPhotoId, setAnimatingHeartPhotoId] = useState<string | null>(null);
-  const lastTapRef = useRef<{ [key: string]: number }>({});
-  const ignoreNextClickRef = useRef<string | null>(null);
 
   const updateFilters = useCallback((patch: Partial<GalleryFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -278,11 +321,12 @@ export function LiveGalleryView({
     };
     window.addEventListener("photo_party_switch_tab", handleSwitch);
     return () => window.removeEventListener("photo_party_switch_tab", handleSwitch);
-  }, []);
+  }, [setMainTab]);
 
   // Toggle Like (Optimistic UI)
   const handleLikeToggle = useCallback(
     async (photo: PhotoItem) => {
+      if (photo.isSample) return;
       const currentlyLiked = Boolean(photo.hasLiked);
       const previousCount = photo.likeCount || 0;
       updatePhoto(photo.id, () => ({
@@ -311,27 +355,13 @@ export function LiveGalleryView({
     [guestSessionId, slug, updatePhoto]
   );
 
-  // Double tap handler on photo using event timestamp
+  // Double tap (dblclick) on the expanded photo: heart pop + like
   const handlePhotoDoubleTap = useCallback(
-    (photo: PhotoItem, e: React.MouseEvent | React.TouchEvent) => {
-      const now = e.timeStamp;
-      const lastTap = lastTapRef.current[photo.id] || 0;
-      const isDoubleTap = now - lastTap < 350;
-      lastTapRef.current[photo.id] = now;
-
-      if (isDoubleTap) {
-        e.stopPropagation();
-        ignoreNextClickRef.current = photo.id;
-        setTimeout(() => {
-          if (ignoreNextClickRef.current === photo.id) {
-            ignoreNextClickRef.current = null;
-          }
-        }, 400);
-        setAnimatingHeartPhotoId(photo.id);
-        setTimeout(() => setAnimatingHeartPhotoId(null), 850);
-        if (!photo.hasLiked) {
-          handleLikeToggle(photo);
-        }
+    (photo: PhotoItem) => {
+      setAnimatingHeartPhotoId(photo.id);
+      setTimeout(() => setAnimatingHeartPhotoId(null), 850);
+      if (!photo.hasLiked) {
+        handleLikeToggle(photo);
       }
     },
     [handleLikeToggle]
@@ -459,10 +489,10 @@ export function LiveGalleryView({
       {/* 2. GALLERY VIEW */}
       {mainTab === "gallery" && (
         <div className="w-full max-w-md sm:max-w-3xl md:max-w-5xl lg:max-w-6xl mx-auto pb-28 px-0 sm:px-4">
-          {/* Top Bar: < 🦋 Caio & Sarah ↓ + */}
+          {/* Top Bar: back · title · add */}
           <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 py-3 sm:py-4 px-4 sm:px-2 flex items-center justify-between">
             <button
-              onClick={() => setMainTab("hub")}
+              onClick={goToHub}
               className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-100 text-gray-900 transition-colors cursor-pointer"
               title="Voltar ao início"
               aria-label="Voltar ao início"
@@ -471,7 +501,6 @@ export function LiveGalleryView({
             </button>
 
             <div className="flex items-center gap-1.5 text-gray-900">
-              <span className="text-base sm:text-lg">🦋</span>
               <span className="font-bold text-base sm:text-lg tracking-tight">{title}</span>
             </div>
 
@@ -501,11 +530,11 @@ export function LiveGalleryView({
             <div className="flex items-center justify-between bg-[#cb7d87]/10 border border-[#cb7d87]/25 px-4 py-2 mx-2 my-2 rounded-2xl text-xs">
               <span className="text-gray-700 font-medium flex items-center gap-1.5">
                 <span>🎯 Desafio:</span>
-                <strong className="text-[#cb7d87] font-semibold">{filters.quest}</strong>
+                <strong className="text-marsala-ink font-semibold">{filters.quest}</strong>
               </span>
               <button
                 onClick={() => updateFilters({ quest: "all" })}
-                className="text-[#cb7d87] hover:underline font-medium text-[11px] flex items-center gap-1 cursor-pointer"
+                className="text-marsala-ink hover:underline font-medium text-[11px] flex items-center gap-1 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
                 Limpar
@@ -514,7 +543,7 @@ export function LiveGalleryView({
           )}
 
           {isLoadingFilter && (
-            <div className="py-20 flex justify-center text-gray-400">
+            <div className="py-20 flex justify-center text-gray-500">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           )}
@@ -525,7 +554,7 @@ export function LiveGalleryView({
               <div className="w-16 h-16 rounded-full bg-rose-50 border border-[#cb7d87]/30 flex items-center justify-center text-3xl mx-auto mb-3 shadow-xs">
                 {selectedMomentObj.icon}
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[11px] text-[#cb7d87] font-semibold mb-2 border border-[#cb7d87]/20 shadow-2xs">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-[11px] text-marsala-ink font-semibold mb-2 border border-[#cb7d87]/20 shadow-2xs">
                 <Clock className="w-3.5 h-3.5" />
                 <span>{selectedMomentObj.startTime} - {selectedMomentObj.endTime}</span>
               </div>
@@ -543,7 +572,7 @@ export function LiveGalleryView({
                     })
                   )
                 }
-                className="inline-flex items-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-white px-6 py-3 rounded-full text-xs font-semibold shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 bg-marsala-ink hover:bg-marsala-ink-hover active:scale-95 text-white px-6 py-3 rounded-full text-xs font-semibold shadow-md transition-all cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
                 <span>Registrar este momento</span>
@@ -553,10 +582,17 @@ export function LiveGalleryView({
 
           {/* Empty General Filter State */}
           {!isLoadingFilter && !selectedMomentObj && sortedPhotos.length === 0 && (
-            <div className="py-20 text-center text-gray-400">
-              <Camera className="w-10 h-10 mx-auto mb-2 opacity-40 text-gray-400" />
+            <div className="py-20 text-center text-gray-500">
+              <Camera className="w-10 h-10 mx-auto mb-2 opacity-40 text-gray-500" />
               <p className="text-sm font-medium">Nenhuma mídia encontrada nesta categoria</p>
             </div>
+          )}
+
+          {showStock && (
+            <p className="mx-4 sm:mx-2 mt-3 rounded-2xl bg-[#fffaf5] border border-[#cb7d87]/25 px-4 py-3 text-sm text-gray-700">
+              <strong className="font-semibold text-gray-900">Ainda não chegou nenhuma foto.</strong> Estas são fotos de
+              exemplo; as dos convidados aparecem aqui assim que forem enviadas.
+            </p>
           )}
 
           {/* Portrait 3:4 Grid on mobile, responsive multi-column with rounded corners on desktop */}
@@ -568,11 +604,7 @@ export function LiveGalleryView({
                   photo={photo}
                   isAnimatingHeart={animatingHeartPhotoId === photo.id}
                   canDelete={canDeletePhoto(photo)}
-                  onOpen={() => {
-                    if (ignoreNextClickRef.current === photo.id) return;
-                    setActivePhotoId(photo.id);
-                  }}
-                  onDoubleTap={(e) => handlePhotoDoubleTap(photo, e)}
+                  onOpen={() => setActivePhotoId(photo.id)}
                   onRequestDelete={() => setPhotoToDelete(photo)}
                 />
               ))}
@@ -587,9 +619,9 @@ export function LiveGalleryView({
               {sharedCount} {sharedCount === 1 ? "Momento Compartilhado" : "Momentos Compartilhados"}
             </p>
             {hasMore ? (
-              <p className="text-[11px] text-gray-400 mt-0.5">Mostrando {sortedPhotos.length} • role para ver mais</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Mostrando {sortedPhotos.length} • role para ver mais</p>
             ) : (
-              <p className="text-[11px] text-gray-400 mt-0.5">
+              <p className="text-[11px] text-gray-500 mt-0.5">
                 {sortedPhotos.length - videoCount} fotos
                 {videoCount > 0 && ` • ${videoCount} vídeos`}
               </p>
@@ -601,7 +633,7 @@ export function LiveGalleryView({
       {/* 3. QUESTS VIEW */}
       {mainTab === "quests" && (
         <div className="w-full max-w-md sm:max-w-3xl md:max-w-4xl lg:max-w-5xl mx-auto pb-28 px-0 sm:px-4">
-          <StickyTitleBar title="Desafios da Noite" onBack={() => setMainTab("hub")} />
+          <StickyTitleBar title="Desafios" onBack={goToHub} />
           <div className="px-4 sm:px-0">
             <PhotoQuestsHub
               slug={slug}
@@ -617,7 +649,7 @@ export function LiveGalleryView({
       {/* 4. CHAT VIEW */}
       {mainTab === "chat" && (
         <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl mx-auto pb-28 px-0 sm:px-4">
-          <StickyTitleBar title="Mural de Recados" onBack={() => setMainTab("hub")} />
+          <StickyTitleBar title="Recados" onBack={goToHub} />
           <div className="px-4 sm:px-0">
             <EventChatView
               slug={slug}
@@ -648,7 +680,7 @@ export function LiveGalleryView({
           onNavigate={handleNavigate}
           onClose={handleCloseLightbox}
           onLike={() => handleLikeToggle(activePhoto)}
-          onDoubleTap={(e) => handlePhotoDoubleTap(activePhoto, e)}
+          onDoubleTap={() => handlePhotoDoubleTap(activePhoto)}
           onRequestDelete={() => setPhotoToDelete(activePhoto)}
           onDownload={() => handleDownload(activePhoto)}
           onPhotoPatch={handleActivePhotoPatch}
@@ -681,7 +713,8 @@ export function LiveGalleryView({
       <SpotlightTour />
 
       {/* Global How It Works Guide Modal */}
-      <HowItWorksModal trigger="none" />
+      {/* Opens only on request ("Como funciona?"); arriving Guests go straight to the party */}
+      <HowItWorksModal trigger="none" autoOpenFirstTime={false} />
     </div>
   );
 }

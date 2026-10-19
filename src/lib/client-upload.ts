@@ -16,7 +16,7 @@ export interface UploadFields {
 }
 
 export interface UploadResult {
-  photo?: { id: string };
+  photo?: { id: string; status?: string };
   message?: string;
 }
 

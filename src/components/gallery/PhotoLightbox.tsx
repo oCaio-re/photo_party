@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, Heart, Send, Trash2, X } from "luc
 import type { CommentItem, PhotoItem } from "@/components/LiveGalleryView";
 import type { WeddingMomentConfig } from "@/lib/moments";
 import { GuestNameDialog } from "@/components/gallery/GuestNameDialog";
+import { Dialog } from "@/components/ui/Dialog";
 
 function formatPhotoTime(dateInput: string | number | Date): string {
   const date = new Date(dateInput);
@@ -61,7 +62,8 @@ export function PhotoLightbox({
   onPhotoPatch,
 }: PhotoLightboxProps) {
   const [comments, setComments] = useState<CommentItem[]>([]);
-  const [isLoadingComments, setIsLoadingComments] = useState(true);
+  // Sample placeholders have no server record, so there is nothing to load
+  const [isLoadingComments, setIsLoadingComments] = useState(!photo.isSample);
   const [newCommentText, setNewCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [pendingCommentText, setPendingCommentText] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export function PhotoLightbox({
   const moment = photo.moment ? moments.find((m) => m.id === photo.moment) : undefined;
 
   useEffect(() => {
+    if (photo.isSample) return;
     let isMounted = true;
     const headers: Record<string, string> = guestSessionId ? { "x-guest-session-id": guestSessionId } : {};
 
@@ -87,17 +90,16 @@ export function PhotoLightbox({
     return () => {
       isMounted = false;
     };
-  }, [slug, photoId, guestSessionId]);
+  }, [slug, photoId, guestSessionId, photo.isSample]);
 
-  // Keyboard navigation
+  // Arrow-key navigation (Escape is handled by the Dialog)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const isInput = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 
-      if (e.key === "Escape") {
-        onClose();
-      } else if (!isInput && e.key === "ArrowLeft" && prevPhoto) {
+      if (pendingCommentText !== null) return;
+      if (!isInput && e.key === "ArrowLeft" && prevPhoto) {
         onNavigate(prevPhoto);
       } else if (!isInput && e.key === "ArrowRight" && nextPhoto) {
         onNavigate(nextPhoto);
@@ -106,7 +108,7 @@ export function PhotoLightbox({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onNavigate, prevPhoto, nextPhoto]);
+  }, [onNavigate, prevPhoto, nextPhoto, pendingCommentText]);
 
   const postComment = useCallback(
     async (content: string, authorName: string) => {
@@ -190,15 +192,15 @@ export function PhotoLightbox({
     }
   };
 
+  const authorLabel = photo.guestName ? `${photo.mediaType === "video" ? "Vídeo" : "Foto"} de ${photo.guestName}` : photo.mediaType === "video" ? "Vídeo da festa" : "Foto da festa";
+
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-sm animate-fade-in"
+    <Dialog
+      onRequestClose={onClose}
+      label={`${authorLabel}${index >= 0 ? `, ${index + 1} de ${total}` : ""}`}
+      backdropClassName="bg-black/85 backdrop-blur-sm p-2 sm:p-4 md:p-6"
+      className="relative max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[92dvh]"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[92vh]"
-      >
         {/* Left Side: Photo/Video Display */}
         <div
           onDoubleClick={onDoubleTap}
@@ -216,7 +218,7 @@ export function PhotoLightbox({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={photo.url}
-              alt={photo.guestName || "Foto"}
+              alt={authorLabel}
               className="max-h-[50vh] md:max-h-[85vh] w-auto object-contain"
             />
           )}
@@ -252,8 +254,8 @@ export function PhotoLightbox({
 
           {/* Heart Pop on double tap inside modal */}
           {isAnimatingHeart && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <div className="animate-ping duration-700">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" aria-hidden="true">
+              <div className="motion-safe:animate-ping duration-700">
                 <Heart className="w-20 h-20 text-rose-500 fill-rose-500 drop-shadow-2xl" />
               </div>
             </div>
@@ -276,7 +278,7 @@ export function PhotoLightbox({
                 </span>
               )}
               {photo.questTitle && (
-                <span className="text-[11px] font-medium bg-[#cb7d87] text-white px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[11px] font-medium bg-marsala-ink text-white px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <span>🎯</span>
                   <span className="truncate max-w-[130px]">{photo.questTitle}</span>
                 </span>
@@ -288,7 +290,7 @@ export function PhotoLightbox({
                 </span>
               )}
               {photo.guestName && (
-                <span className="text-xs font-semibold text-[#cb7d87] truncate max-w-[140px]">
+                <span className="text-xs font-semibold text-marsala-ink truncate max-w-[140px]">
                   Por {photo.guestName}
                 </span>
               )}
@@ -298,23 +300,17 @@ export function PhotoLightbox({
               {canDelete && (
                 <button
                   onClick={onRequestDelete}
-                  className="p-1.5 text-rose-600 hover:text-rose-700 rounded-full hover:bg-rose-50 transition-colors flex items-center gap-1 text-xs font-medium"
+                  className="p-2 text-rose-700 hover:text-rose-800 rounded-full hover:bg-rose-50 transition-colors flex items-center gap-1 text-xs font-medium"
                   title="Apagar minha foto"
+                  aria-label="Apagar minha foto"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
                   <span className="hidden sm:inline">Apagar</span>
                 </button>
               )}
               <button
-                onClick={onDownload}
-                className="p-1.5 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
-                title="Baixar foto"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button
                 onClick={onClose}
-                className="p-1.5 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -328,7 +324,7 @@ export function PhotoLightbox({
               <div className="pb-3">
                 <p className="font-semibold text-gray-900 text-xs flex items-center gap-1.5">
                   <span>{photo.guestName || "Convidado"}</span>
-                  <span className="text-[10px] text-gray-400 font-normal">
+                  <span className="text-[11px] text-gray-500 font-normal">
                     {formatPhotoTime(photo.createdAt)}
                   </span>
                 </p>
@@ -337,9 +333,9 @@ export function PhotoLightbox({
             )}
 
             {isLoadingComments ? (
-              <div className="py-6 text-center text-gray-400 text-xs">Carregando comentários...</div>
+              <div className="py-6 text-center text-gray-500 text-xs">Carregando comentários...</div>
             ) : comments.length === 0 && !photo.message ? (
-              <div className="py-6 text-center text-gray-400 text-xs">
+              <div className="py-6 text-center text-gray-500 text-xs">
                 Nenhum comentário ainda. Seja o primeiro a comentar!
               </div>
             ) : (
@@ -352,10 +348,11 @@ export function PhotoLightbox({
                   {comment.canDelete && (
                     <button
                       onClick={() => handleDeleteComment(comment.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-rose-600 p-1 transition-opacity cursor-pointer shrink-0"
+                      className="sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 text-gray-500 hover:text-rose-700 p-1.5 -m-1 transition-opacity cursor-pointer shrink-0"
                       title="Apagar comentário"
+                      aria-label={`Apagar seu comentário "${comment.content.slice(0, 40)}"`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -369,7 +366,10 @@ export function PhotoLightbox({
             <button
               type="button"
               onClick={onLike}
-              className="flex items-center gap-1.5 text-gray-700 hover:text-[#cb7d87] transition-colors cursor-pointer active:scale-95"
+              disabled={photo.isSample}
+              aria-pressed={Boolean(photo.hasLiked)}
+              aria-label={`${photo.hasLiked ? "Descurtir" : "Curtir"} · ${photo.likeCount || 0} ${(photo.likeCount || 0) === 1 ? "curtida" : "curtidas"}`}
+              className="flex items-center gap-1.5 py-1 text-gray-700 hover:text-marsala-ink disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer active:scale-95"
             >
               <Heart
                 className={`w-5 h-5 ${
@@ -387,34 +387,45 @@ export function PhotoLightbox({
               className="flex items-center gap-1.5 bg-[#cb7d87]/15 hover:bg-[#cb7d87]/25 text-[#832d3b] px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-2xs"
               title="Salvar foto no seu celular"
             >
-              <Download className="w-3.5 h-3.5 text-[#cb7d87]" />
+              <Download className="w-3.5 h-3.5 text-marsala-ink" />
               <span>Salvar no Celular</span>
             </button>
           </div>
 
           {/* Comment Input */}
+          {photo.isSample ? (
+            <p className="p-3 border-t border-gray-100 text-xs text-gray-500 text-center">
+              Esta é uma foto de exemplo. Os comentários abrem nas fotos dos convidados.
+            </p>
+          ) : (
           <form onSubmit={handleCommentSubmit} className="p-3 border-t border-gray-100 flex items-center gap-2 bg-white">
+            <label htmlFor={`comment-input-${photoId}`} className="sr-only">
+              Escreva um comentário
+            </label>
             <input
+              id={`comment-input-${photoId}`}
               type="text"
               value={newCommentText}
               onChange={(e) => setNewCommentText(e.target.value)}
               placeholder="Adicione um comentário..."
-              className="flex-1 text-xs px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:border-[#cb7d87] focus:bg-white text-gray-900"
+              maxLength={500}
+              className="flex-1 text-base sm:text-sm px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-full focus:outline-none focus:border-[#cb7d87] focus:bg-white text-gray-900 placeholder:text-gray-500"
             />
             <button
               type="submit"
               disabled={!newCommentText.trim() || isSubmittingComment}
-              className="p-2 bg-[#cb7d87] hover:bg-[#b86a76] text-white rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Publicar comentário"
+              className="p-2.5 bg-marsala-ink hover:bg-marsala-ink-hover text-white rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-4 h-4" aria-hidden="true" />
             </button>
           </form>
+          )}
         </div>
-      </div>
 
       {/* Ask for the Guest's name before their first comment */}
       {pendingCommentText !== null && (
-        <div onClick={(e) => e.stopPropagation()}>
+        <div>
           <GuestNameDialog
             initialName={guestName}
             onCancel={() => setPendingCommentText(null)}
@@ -427,6 +438,6 @@ export function PhotoLightbox({
           />
         </div>
       )}
-    </div>
+    </Dialog>
   );
 }

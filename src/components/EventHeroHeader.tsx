@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
-  Camera,
   Sparkles,
   MessageSquare,
   BookOpen,
@@ -12,6 +11,8 @@ import {
   ChevronRight,
   Tv,
   HelpCircle,
+  Images,
+  ExternalLink,
 } from "lucide-react";
 import { PhotoItem } from "./LiveGalleryView";
 import { GuestWelcomeCard } from "./GuestWelcomeCard";
@@ -272,31 +273,23 @@ export function EventHeroHeader({
         {/* Soft top gradient for contrast and smooth bottom fade into pure white */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-white pointer-events-none" />
 
-        {/* Floating subtle top buttons for Início and Telão */}
-        <div className="absolute top-5 left-4 z-20">
-          <Link
-            href="/"
-            className="p-2 sm:p-2.5 rounded-full bg-black/35 backdrop-blur-md text-white/90 hover:text-white hover:bg-black/55 border border-white/20 flex items-center justify-center transition-all shadow-sm"
-            title="Início"
-          >
-            <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
-          </Link>
-        </div>
-        <div className="absolute top-5 right-4 z-20 flex items-center gap-2">
+        {/* Floating top button for the venue screen (this hub already is the guest's home) */}
+        <div className="absolute top-5 right-3 sm:right-4 z-20 flex items-center gap-2">
           <Link
             href={`/e/${slug}/slideshow`}
             target="_blank"
             className="p-2 sm:p-2.5 rounded-full bg-black/35 backdrop-blur-md text-white/90 hover:text-white hover:bg-black/55 border border-white/20 flex items-center justify-center transition-all shadow-sm"
             title="Modo Telão"
+            aria-label="Abrir o modo telão (nova aba)"
           >
             <Tv className="w-4 h-4 sm:w-5 sm:h-5" />
           </Link>
         </div>
 
         {/* Intelligent Dynamic Countdown Card without Years (matching exemplo_nova_UI.jpeg) */}
-        <div className="absolute top-5 inset-x-0 flex justify-center z-20 px-3 pointer-events-none">
+        <div className="absolute top-5 inset-x-0 flex justify-center z-20 px-14 sm:px-3 pointer-events-none">
           <div className="backdrop-blur-md bg-black/40 border border-white/25 rounded-2xl px-4 py-3 sm:px-6 sm:py-3.5 text-center shadow-lg max-w-[320px] sm:max-w-[380px] md:max-w-[430px] w-full pointer-events-auto">
-            <p className="text-[11px] sm:text-xs text-white/85 font-normal mb-1.5 lowercase tracking-wide">
+            <p className="text-xs text-white/90 font-normal mb-1.5 lowercase tracking-wide">
               {countdown.title}
             </p>
             <div className="flex items-center justify-center gap-2.5 sm:gap-4 text-white">
@@ -305,7 +298,7 @@ export function EventHeroHeader({
                   <span className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight font-sans block leading-none">
                     {unit.value}
                   </span>
-                  <span className="block text-[8.5px] sm:text-[9.5px] md:text-[10.5px] uppercase tracking-wider text-white/70 font-medium mt-1">
+                  <span className="block text-[11px] md:text-xs uppercase tracking-wider text-white/80 font-medium mt-1">
                     {unit.label}
                   </span>
                 </div>
@@ -318,17 +311,18 @@ export function EventHeroHeader({
         <div className="absolute bottom-2 sm:bottom-4 inset-x-0 flex flex-col items-center text-center px-4 z-10">
           {/* Status Pill Badge: Álbum ao vivo & Como funciona */}
           <div className="flex items-center gap-2 mb-1.5 flex-wrap justify-center">
-            <div className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-white/75 backdrop-blur-md border border-[#cb7d87]/30 text-[#cb7d87] text-xs sm:text-sm font-semibold shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#cb7d87]" />
+            {/* Status label, deliberately not styled like the button beside it */}
+            <p className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-marsala-deep">
+              <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" />
               <span>Álbum ao vivo</span>
-            </div>
+            </p>
             <button
               type="button"
               onClick={() => openHowItWorksGuide()}
-              className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 rounded-full bg-white/80 hover:bg-white text-[#5a6248] hover:text-[#cb7d87] text-xs font-semibold backdrop-blur-md border border-[#cb7d87]/25 shadow-xs transition-colors cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 rounded-full bg-white/80 hover:bg-white text-[#5a6248] hover:text-marsala-ink text-xs font-semibold backdrop-blur-md border border-[#cb7d87]/25 shadow-xs transition-colors cursor-pointer active:scale-95"
               title="Como funciona o Photo Party"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-[#cb7d87]" />
+              <HelpCircle className="w-3.5 h-3.5 text-marsala-ink" />
               <span>Como funciona?</span>
             </button>
           </div>
@@ -339,7 +333,7 @@ export function EventHeroHeader({
           </h1>
 
           {/* Date & Time */}
-          <p className="text-xs sm:text-sm md:text-base text-gray-500 font-medium mt-0.5 sm:mt-1">
+          <p className="text-xs sm:text-sm md:text-base text-gray-700 font-medium mt-0.5 sm:mt-1">
             11 de Dezembro 2026, 15:00h
           </p>
         </div>
@@ -347,12 +341,7 @@ export function EventHeroHeader({
 
       {/* Contextual Table Welcome Card for the Guest */}
       <div className="w-full max-w-md sm:max-w-xl md:max-w-2xl px-4 mt-4 sm:mt-6">
-        <GuestWelcomeCard
-          tableName={tableName}
-          onTakePhoto={() => {
-            window.dispatchEvent(new CustomEvent("open-upload-modal"));
-          }}
-        />
+        <GuestWelcomeCard tableName={tableName} />
       </div>
 
       {/* Central Navigation Bar (clean icons directly on pure white background) */}
@@ -370,15 +359,15 @@ export function EventHeroHeader({
             <div
               className={`p-2 rounded-2xl transition-colors ${
                 activeTab === "gallery"
-                  ? "text-[#cb7d87] bg-[#cb7d87]/10"
+                  ? "text-marsala-ink bg-[#cb7d87]/10"
                   : "text-gray-600 group-hover:text-gray-900"
               }`}
             >
-              <Camera className="w-6 h-6" />
+              <Images className="w-6 h-6" aria-hidden="true" />
             </div>
             <span
               className={`text-[11px] sm:text-xs mt-0.5 font-medium ${
-                activeTab === "gallery" ? "text-[#cb7d87] font-semibold" : "text-gray-600"
+                activeTab === "gallery" ? "text-marsala-ink font-semibold" : "text-gray-600"
               }`}
             >
               Fotos
@@ -393,7 +382,7 @@ export function EventHeroHeader({
             <div
               className={`p-2 rounded-2xl transition-colors ${
                 activeTab === "quests"
-                  ? "text-[#cb7d87] bg-[#cb7d87]/10"
+                  ? "text-marsala-ink bg-[#cb7d87]/10"
                   : "text-gray-600 group-hover:text-gray-900"
               }`}
             >
@@ -401,7 +390,7 @@ export function EventHeroHeader({
             </div>
             <span
               className={`text-[11px] sm:text-xs mt-0.5 font-medium ${
-                activeTab === "quests" ? "text-[#cb7d87] font-semibold" : "text-gray-600"
+                activeTab === "quests" ? "text-marsala-ink font-semibold" : "text-gray-600"
               }`}
             >
               Desafios
@@ -416,23 +405,23 @@ export function EventHeroHeader({
             <div
               className={`p-2 rounded-2xl transition-colors relative ${
                 activeTab === "chat"
-                  ? "text-[#cb7d87] bg-[#cb7d87]/10"
+                  ? "text-marsala-ink bg-[#cb7d87]/10"
                   : "text-gray-600 group-hover:text-gray-900"
               }`}
             >
               <MessageSquare className="w-6 h-6" />
-              {/* Símbolo vermelho piscante que sinaliza transmissão Ao Vivo */}
-              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              {/* "Ao vivo" marker; the pulse only plays for people who accept motion */}
+              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5" aria-hidden="true">
+                <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
               </span>
             </div>
             <span
-              className={`text-[10px] sm:text-xs mt-0.5 font-medium whitespace-nowrap ${
-                activeTab === "chat" ? "text-[#cb7d87] font-semibold" : "text-gray-600"
+              className={`text-[11px] sm:text-xs mt-0.5 font-medium whitespace-nowrap ${
+                activeTab === "chat" ? "text-marsala-ink font-semibold" : "text-gray-600"
               }`}
             >
-              Recados ao vivo
+              Recados
             </span>
           </button>
 
@@ -456,12 +445,14 @@ export function EventHeroHeader({
             rel="noopener noreferrer"
             className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 transition-all cursor-pointer group"
             title="Lista de Presentes & Pix dos Noivos"
+            aria-label="Presentes (abre o site dos noivos em outra aba)"
           >
-            <div className="p-2 rounded-2xl text-gray-600 group-hover:text-[#cb7d87] group-hover:bg-[#cb7d87]/10 transition-colors">
-              <Gift className="w-6 h-6 text-[#cb7d87]" />
+            <div className="p-2 rounded-2xl text-gray-600 group-hover:text-marsala-ink group-hover:bg-[#cb7d87]/10 transition-colors">
+              <Gift className="w-6 h-6 text-marsala-ink" />
             </div>
-            <span className="text-[11px] sm:text-xs mt-0.5 font-medium text-gray-600 group-hover:text-[#cb7d87]">
+            <span className="text-[11px] sm:text-xs mt-0.5 font-medium text-gray-600 group-hover:text-marsala-ink inline-flex items-center gap-0.5">
               Presentes
+              <ExternalLink className="w-3 h-3" aria-hidden="true" />
             </span>
           </a>
         </div>
@@ -469,18 +460,22 @@ export function EventHeroHeader({
 
       {/* Fluid 3D Coverflow Carousel (identical to exemplo_nova_UI.jpeg with adjacent items visible) */}
       <div id="moments-carousel-section" className="w-full mt-6 mb-8 px-0 sm:px-2">
+        <h2 className="sr-only">Momentos do casamento</h2>
         <div className="relative w-full flex items-center justify-center">
           {/* Prev Card Arrow */}
           <button
             onClick={handlePrevCard}
             className="absolute left-2 sm:left-4 md:left-6 lg:left-8 z-30 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/45 hover:bg-black/70 text-white backdrop-blur-xs transition-transform active:scale-90 shadow-md cursor-pointer"
-            aria-label="Card anterior"
+            aria-label={`Momento anterior: ${carouselCards[(activeCardIndex - 1 + carouselCards.length) % carouselCards.length]?.title ?? ""}`}
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Touch & Drag Carousel Track Container */}
           <div
+            role="region"
+            aria-roledescription="carrossel"
+            aria-label="Momentos do casamento"
             className="relative w-full h-[370px] sm:h-[410px] md:h-[450px] lg:h-[480px] overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing"
             onTouchStart={(e) => handleTouchStart(e.touches[0].clientX)}
             onTouchMove={(e) => handleTouchMove(e.touches[0].clientX)}
@@ -516,6 +511,11 @@ export function EventHeroHeader({
               return (
                 <div
                   key={card.id}
+                  // Only the centred card is reachable by keyboard and screen readers; side cards stay clickable
+                  inert={isHidden}
+                  aria-hidden={!isCenter}
+                  aria-roledescription={isCenter ? "momento" : undefined}
+                  aria-label={isCenter ? `${card.title}, ${card.startTime} às ${card.endTime}${card.isCurrentActive ? ", acontecendo agora" : ""}` : undefined}
                   onClick={(e) => {
                     if (isLeft) {
                       e.stopPropagation();
@@ -557,11 +557,11 @@ export function EventHeroHeader({
 
                   {/* Card Center-Top Header */}
                   <div className="absolute top-4 inset-x-3 text-center z-10 pointer-events-none">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/45 backdrop-blur-xs text-[10px] sm:text-[11px] text-white/90 font-medium mb-1.5 border border-white/20 shadow-xs">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/45 backdrop-blur-xs text-[11px] sm:text-xs text-white/90 font-medium mb-1.5 border border-white/20 shadow-xs">
                       <span>{card.icon}</span>
                       <span>{card.startTime} - {card.endTime}</span>
                       {card.isCurrentActive && (
-                        <span className="ml-1 px-1.5 py-0.2 bg-[#cb7d87] text-white rounded-full text-[8.5px] font-bold uppercase tracking-wider animate-pulse">
+                        <span className="ml-1 px-1.5 py-0.2 bg-marsala-ink text-white rounded-full text-[11px] font-bold uppercase tracking-wider motion-safe:animate-pulse">
                           Agora
                         </span>
                       )}
@@ -579,6 +579,8 @@ export function EventHeroHeader({
                   {/* Card Bottom Action Button (Smart Action) */}
                   <div className="absolute bottom-5 inset-x-5 flex justify-center z-10">
                     <button
+                      type="button"
+                      tabIndex={isCenter ? undefined : -1}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isCenter) {
@@ -602,7 +604,7 @@ export function EventHeroHeader({
                         isCenter
                           ? card.count > 0
                             ? "bg-white/90 hover:bg-white text-gray-900 border-white/60"
-                            : "bg-[#cb7d87] hover:bg-[#b86a76] text-white border-[#cb7d87]/60 shadow-lg font-bold"
+                            : "bg-marsala-ink hover:bg-marsala-ink-hover text-white border-[#cb7d87]/60 shadow-lg font-bold"
                           : "bg-white/60 text-gray-900 border-white/30"
                       }`}
                     >
@@ -618,7 +620,7 @@ export function EventHeroHeader({
           <button
             onClick={handleNextCard}
             className="absolute right-2 sm:right-4 md:right-6 lg:right-8 z-30 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/45 hover:bg-black/70 text-white backdrop-blur-xs transition-transform active:scale-90 shadow-md cursor-pointer"
-            aria-label="Próximo card"
+            aria-label={`Próximo momento: ${carouselCards[(activeCardIndex + 1) % carouselCards.length]?.title ?? ""}`}
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -630,10 +632,11 @@ export function EventHeroHeader({
             <button
               key={c.id}
               onClick={() => setActiveCardIndex(idx)}
-              className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                idx === activeCardIndex ? "w-6 bg-[#cb7d87]" : "w-1.5 bg-gray-300"
+              className={`relative h-1.5 rounded-full transition-all cursor-pointer after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] ${
+                idx === activeCardIndex ? "w-6 bg-marsala-ink" : "w-1.5 bg-gray-300"
               }`}
-              aria-label={`Slide ${idx + 1}`}
+              aria-label={`Ver momento ${c.title}`}
+              aria-current={idx === activeCardIndex ? "true" : undefined}
             />
           ))}
         </div>

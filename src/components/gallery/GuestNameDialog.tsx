@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Dialog } from "@/components/ui/Dialog";
 
 interface GuestNameDialogProps {
   initialName: string;
@@ -18,20 +19,30 @@ export function GuestNameDialog({ initialName, onSave, onCancel }: GuestNameDial
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-left">
-        <h4 className="text-base font-bold text-gray-900">Como podemos te chamar?</h4>
-        <p className="text-xs text-gray-500 mt-1">
-          Informe seu nome para que os noivos saibam quem comentou!
+    <Dialog
+      onRequestClose={onCancel}
+      labelledBy="guest-name-title"
+      className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-left"
+    >
+      <form onSubmit={handleSubmit}>
+        <h4 id="guest-name-title" className="text-base font-bold text-gray-900">Como podemos te chamar?</h4>
+        <p id="guest-name-hint" className="text-sm text-gray-600 mt-1">
+          Seu nome aparece junto do comentário, para os noivos saberem quem escreveu.
         </p>
+        <label htmlFor="guest-name-input" className="sr-only">
+          Seu nome
+        </label>
         <input
+          id="guest-name-input"
+          data-autofocus
+          aria-describedby="guest-name-hint"
+          autoComplete="name"
           type="text"
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
           placeholder="Ex: Tio Pedro ou Sarah"
-          autoFocus
           maxLength={60}
-          className="w-full px-4 py-2.5 mt-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] text-sm text-gray-900"
+          className="w-full px-4 py-2.5 mt-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:border-[#cb7d87] text-base sm:text-sm text-gray-900 placeholder:text-gray-500"
         />
         <div className="flex items-center gap-2 mt-4">
           <button
@@ -44,12 +55,12 @@ export function GuestNameDialog({ initialName, onSave, onCancel }: GuestNameDial
           <button
             type="submit"
             disabled={!nameInput.trim()}
-            className="flex-1 py-2.5 rounded-full bg-[#cb7d87] hover:bg-[#b86a76] text-white text-xs font-semibold disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-full bg-marsala-ink hover:bg-marsala-ink-hover text-white text-xs font-semibold disabled:opacity-50"
           >
             Continuar
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

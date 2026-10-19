@@ -19,7 +19,7 @@ export const DEFAULT_GALLERY_FILTERS: GalleryFilters = {
   sort: "recent",
 };
 
-const ACTIVE_PILL = "bg-[#cb7d87] text-white border-[#cb7d87] shadow-xs";
+const ACTIVE_PILL = "bg-marsala-ink text-white border-[#cb7d87] shadow-xs";
 const IDLE_PILL = "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200";
 
 interface GalleryFilterBarProps {
@@ -100,7 +100,7 @@ export function GalleryFilterBar({ filters, onChange, tableName, tableOptions, m
       {showMoreFilters && (
         <div className="p-3 bg-[#fffaf5] border border-[#cb7d87]/20 rounded-2xl space-y-2.5 animate-fade-in text-xs">
           <div>
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-[#cb7d87] mb-1">
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-marsala-ink mb-1">
               Filtrar por Momento:
             </span>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -111,7 +111,7 @@ export function GalleryFilterBar({ filters, onChange, tableName, tableOptions, m
                   onClick={() => onChange({ category: m.id, table: "all", quest: "all" })}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all border cursor-pointer ${
                     category === m.id
-                      ? "bg-[#cb7d87] text-white border-[#cb7d87] font-semibold"
+                      ? "bg-marsala-ink text-white border-[#cb7d87] font-semibold"
                       : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                   }`}
                 >
@@ -124,7 +124,7 @@ export function GalleryFilterBar({ filters, onChange, tableName, tableOptions, m
 
           {tableOptions.length > 0 && (
             <div className="pt-2 border-t border-[#cb7d87]/15">
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-600 mb-1">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1">
                 Filtrar por Outra Mesa:
               </span>
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">

@@ -1,8 +1,9 @@
-import { pgTable, text, boolean, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, unique, index } from "drizzle-orm/pg-core";
 
 export const events = pgTable("events", {
   id: text("id").primaryKey(),
-  slug: text("slug").notNull().unique(),
+  // Constraint names match the ones the original raw-SQL setup created, so db:push keeps them
+  slug: text("slug").notNull().unique("events_slug_key"),
   title: text("title").notNull(),
   hostKey: text("host_key").notNull(),
   moderationPolicy: text("moderation_policy", {
@@ -94,7 +95,7 @@ export const photoLikes = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull(),
   },
   (table) => [
-    uniqueIndex("photo_likes_photo_guest_idx").on(table.photoId, table.guestSessionId),
+    unique("photo_likes_photo_id_guest_session_id_key").on(table.photoId, table.guestSessionId),
   ]
 );
 

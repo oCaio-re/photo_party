@@ -46,7 +46,7 @@ export function GuestbookClient({
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
           <Link
             href={`/e/${slug}`}
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-[#5a6248] hover:text-[#cb7d87] transition-colors"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-[#5a6248] hover:text-marsala-ink transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar para o Mural</span>
@@ -55,7 +55,7 @@ export function GuestbookClient({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-white px-4 py-2 rounded-full font-serif text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 bg-marsala-ink hover:bg-marsala-ink-hover active:scale-95 text-white px-4 py-2 rounded-full font-serif text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4 text-[#ebca90]" />
               <span>Imprimir Livro (PDF)</span>
@@ -71,7 +71,7 @@ export function GuestbookClient({
             <MonogramLogo size={56} color="#cb7d87" />
           </div>
 
-          <span className="text-xs uppercase tracking-[0.25em] text-[#cb7d87] font-semibold">
+          <span className="text-xs uppercase tracking-[0.25em] text-marsala-ink font-semibold">
             Livro de Recordações & Mensagens
           </span>
 
@@ -79,7 +79,7 @@ export function GuestbookClient({
             {eventTitle}
           </h1>
 
-          <p className="font-serif text-sm sm:text-base text-[#7c8764] italic mt-2">
+          <p className="font-serif text-sm sm:text-base text-sage-ink italic mt-2">
             {formattedEventDate}
           </p>
 
@@ -102,11 +102,11 @@ export function GuestbookClient({
         {/* Entries Layout */}
         {entries.length === 0 ? (
           <div className="py-20 text-center">
-            <div className="w-12 h-12 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-[#cb7d87] mx-auto mb-3">
+            <div className="w-12 h-12 rounded-full bg-[#cb7d87]/15 flex items-center justify-center text-marsala-ink mx-auto mb-3">
               <Sparkles className="w-6 h-6" />
             </div>
             <h3 className="font-serif text-2xl text-[#5a6248]">Nenhuma memória ainda</h3>
-            <p className="text-xs text-[#7c8764] mt-1">
+            <p className="text-xs text-sage-ink mt-1">
               As fotos e vídeos com dedicatórias dos convidados aparecerão aqui no livro digital.
             </p>
           </div>
@@ -130,7 +130,7 @@ export function GuestbookClient({
                             preload="metadata"
                             className="w-full h-full object-contain"
                           />
-                          <span className="absolute top-2 left-2 text-[10px] font-semibold bg-black/70 text-white px-2 py-0.5 rounded-full flex items-center gap-1 print:hidden">
+                          <span className="absolute top-2 left-2 text-[11px] font-semibold bg-black/70 text-white px-2 py-0.5 rounded-full flex items-center gap-1 print:hidden">
                             <Video className="w-3 h-3 text-[#ebca90]" />
                             <span>Vídeo (15s)</span>
                           </span>
@@ -148,7 +148,7 @@ export function GuestbookClient({
 
                     {/* Table Pill */}
                     {entry.tableIdentifier && (
-                      <span className="absolute -bottom-2.5 left-4 text-[10px] uppercase tracking-wider font-semibold bg-[#5a6248] text-[#fbead6] px-3 py-1 rounded-full shadow-xs">
+                      <span className="absolute -bottom-2.5 left-4 text-[11px] uppercase tracking-wider font-semibold bg-[#5a6248] text-[#fbead6] px-3 py-1 rounded-full shadow-xs">
                         {entry.tableIdentifier}
                       </span>
                     )}
@@ -171,17 +171,17 @@ export function GuestbookClient({
                           &ldquo;{entry.message}&rdquo;
                         </blockquote>
                       ) : (
-                        <p className="font-serif text-base text-[#7c8764] italic">
+                        <p className="font-serif text-base text-sage-ink italic">
                           Um momento especial capturado para os noivos.
                         </p>
                       )}
 
                       {/* Author */}
                       <div className="mt-3">
-                        <p className="font-serif text-base text-[#cb7d87] font-medium">
+                        <p className="font-serif text-base text-marsala-ink font-medium">
                           — {entry.guestName || "Convidado Anônimo"}
                         </p>
-                        <p className="text-[11px] text-[#7c8764] mt-0.5">
+                        <p className="text-[11px] text-sage-ink mt-0.5">
                           {new Date(entry.createdAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -214,7 +214,7 @@ export function GuestbookClient({
                             alt="QR Code do Vídeo"
                             className="w-12 h-12 object-contain"
                           />
-                          <div className="text-[9px] text-[#7c8764] leading-tight max-w-[90px]">
+                          <div className="text-[11px] text-sage-ink leading-tight max-w-[90px]">
                             <span className="font-semibold text-[#832d3b] block">Ver Vídeo</span>
                             Aponte a câmera para assistir
                           </div>
@@ -234,8 +234,8 @@ export function GuestbookClient({
             <MonogramLogo size={36} color="#5a6248" />
           </div>
           <p className="font-serif text-lg text-[#5a6248]">Com amor e gratidão,</p>
-          <p className="font-serif text-xl font-medium text-[#cb7d87] mt-1">{eventTitle}</p>
-          <p className="text-xs text-[#7c8764] mt-2">
+          <p className="font-serif text-xl font-medium text-marsala-ink mt-1">{eventTitle}</p>
+          <p className="text-xs text-sage-ink mt-2">
             Registrado com carinho através do Photo Party
           </p>
         </footer>

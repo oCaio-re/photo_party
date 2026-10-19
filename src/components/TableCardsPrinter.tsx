@@ -38,7 +38,7 @@ export function TableCardsPrinter({
         </div>
         <button
           onClick={handlePrint}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] text-white px-5 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-marsala-ink hover:bg-marsala-ink-hover text-white px-5 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition-colors cursor-pointer"
         >
           <Printer className="w-4 h-4" />
           <span>Imprimir Cartões</span>
@@ -80,7 +80,7 @@ export function TableCardsPrinter({
                   className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
                 />
               ) : (
-                <div className="w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center bg-gray-50 text-gray-400">
+                <div className="w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center bg-gray-50 text-gray-500">
                   <QrCode className="w-12 h-12" />
                 </div>
               )}
@@ -88,7 +88,7 @@ export function TableCardsPrinter({
 
             {/* Instructions */}
             <div className="mb-2">
-              <p className="font-serif text-base text-[#cb7d87] font-medium">
+              <p className="font-serif text-base text-marsala-ink font-medium">
                 Aponte a câmera do seu celular
               </p>
               <p className="text-[11px] text-[#5a6248] max-w-xs mt-0.5">

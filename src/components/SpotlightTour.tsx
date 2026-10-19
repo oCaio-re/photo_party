@@ -13,24 +13,15 @@ export interface SpotlightStep {
 const DEFAULT_STEPS: SpotlightStep[] = [
   {
     targetId: "guest-upload-button",
-    title: "📸 Tire fotos e compartilhe",
-    description:
-      "Toque aqui a qualquer momento para abrir sua câmera ou escolher da galeria e mandar direto para o telão da festa.",
+    title: "Tire fotos para o telão",
+    description: "Toque aqui a qualquer momento para abrir a câmera ou escolher uma foto do celular.",
     preferredPlacement: "top",
   },
   {
     targetId: "nav-photos-button",
-    title: "🖼️ Galeria ao Vivo",
-    description:
-      "Veja todas as fotos tiradas pelos convidados, curta com coração ❤️ e salve as suas preferidas no celular.",
+    title: "Veja as fotos de todos",
+    description: "Aqui ficam as fotos dos convidados. Curta as preferidas e salve no seu celular.",
     preferredPlacement: "bottom",
-  },
-  {
-    targetId: "moments-carousel-section",
-    title: "⏳ Linha do Tempo",
-    description:
-      "Acompanhe as fases da celebração (Cerimônia, Jantar e Festa) conforme o casamento acontece.",
-    preferredPlacement: "top",
   },
 ];
 
@@ -51,7 +42,7 @@ export function startSpotlightTour() {
 
 export function SpotlightTour({
   storageKey = "photo_party_spotlight_completed",
-  autoStartDelay = 900,
+  autoStartDelay = 1500,
 }: {
   storageKey?: string;
   autoStartDelay?: number;
@@ -224,7 +215,7 @@ export function SpotlightTour({
             width: `${targetRect.width}px`,
             height: `${targetRect.height}px`,
           }}
-          className="fixed rounded-[20px] ring-3 ring-[#cb7d87] ring-offset-2 ring-offset-black/40 pointer-events-none transition-all duration-300 animate-pulse"
+          className="fixed rounded-[20px] ring-3 ring-marsala-ink ring-offset-2 ring-offset-black/40 pointer-events-none transition-all duration-300 animate-pulse"
         />
       )}
 
@@ -254,7 +245,7 @@ export function SpotlightTour({
         <div className="pointer-events-auto w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-[#cb7d87]/30 text-gray-900 animate-scale-in">
           {/* Step Pill */}
           <div className="flex items-center justify-between mb-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#cb7d87]/15 text-[#cb7d87] text-[11px] font-bold uppercase tracking-wider">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#cb7d87]/15 text-marsala-ink text-[11px] font-bold uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
               <span>
                 Passo {currentStepIndex + 1} de {steps.length}
@@ -267,7 +258,7 @@ export function SpotlightTour({
                 <span
                   key={i}
                   className={`h-1.5 rounded-full transition-all ${
-                    i === currentStepIndex ? "w-5 bg-[#cb7d87]" : "w-1.5 bg-gray-200"
+                    i === currentStepIndex ? "w-5 bg-marsala-ink" : "w-1.5 bg-gray-200"
                   }`}
                 />
               ))}
@@ -295,7 +286,7 @@ export function SpotlightTour({
             <button
               type="button"
               onClick={handleNext}
-              className="flex items-center gap-1.5 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-95 text-white font-semibold text-xs px-5 py-2.5 rounded-full shadow-md transition-all cursor-pointer"
+              className="flex items-center gap-1.5 bg-marsala-ink hover:bg-marsala-ink-hover active:scale-95 text-white font-semibold text-xs px-5 py-2.5 rounded-full shadow-md transition-all cursor-pointer"
             >
               <span>{currentStepIndex < steps.length - 1 ? "Próximo" : "Entendi, vamos lá!"}</span>
               {currentStepIndex < steps.length - 1 ? (

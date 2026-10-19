@@ -134,14 +134,14 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
         <div className="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto justify-between sm:justify-end">
           <button
             onClick={handleRefresh}
-            className="p-2 text-gray-500 hover:text-[#cb7d87] rounded-full hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+            className="p-2 text-gray-500 hover:text-marsala-ink rounded-full hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
             title="Atualizar lista"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center justify-center gap-1.5 text-xs bg-[#cb7d87] hover:bg-[#b86a76] text-white px-4 py-2.5 rounded-xl font-semibold shadow-xs cursor-pointer transition-all flex-1 sm:flex-none"
+            className="flex items-center justify-center gap-1.5 text-xs bg-marsala-ink hover:bg-marsala-ink-hover text-white px-4 py-2.5 rounded-xl font-semibold shadow-xs cursor-pointer transition-all flex-1 sm:flex-none"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{showForm ? "Fechar Formulário" : "Novo Desafio"}</span>
@@ -176,7 +176,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
                   onClick={() => setIcon(item)}
                   className={`w-9 h-9 text-lg rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                     icon === item
-                      ? "bg-[#cb7d87] text-white scale-110 shadow-xs"
+                      ? "bg-marsala-ink text-white scale-110 shadow-xs"
                       : "bg-gray-50 border border-gray-200 hover:bg-rose-50"
                   }`}
                 >
@@ -188,7 +188,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
                 value={icon}
                 onChange={(e) => setIcon(e.target.value)}
                 maxLength={4}
-                className="w-14 text-center px-2 py-1.5 text-base rounded-xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#cb7d87]"
+                className="w-14 text-center px-2 py-1.5 text-base rounded-xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-marsala-ink"
               />
             </div>
           </div>
@@ -203,7 +203,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="ex: Brinde com os noivos"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#cb7d87]"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-marsala-ink"
             />
           </div>
 
@@ -216,7 +216,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="ex: Capture aquele momento especial de comemoração"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#cb7d87]"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-marsala-ink"
             />
           </div>
 
@@ -231,7 +231,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
             <button
               type="submit"
               disabled={isSubmitting || !title.trim()}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-50 text-white px-5 py-2.5 rounded-xl shadow-xs cursor-pointer font-semibold"
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs bg-marsala-ink hover:bg-marsala-ink-hover disabled:opacity-50 text-white px-5 py-2.5 rounded-xl shadow-xs cursor-pointer font-semibold"
             >
               {isSubmitting ? (
                 <>
@@ -251,14 +251,14 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
 
       {/* Quests List */}
       {isLoading ? (
-        <div className="py-12 text-center text-gray-400">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#cb7d87]" />
+        <div className="py-12 text-center text-gray-500">
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-marsala-ink" />
           <p className="text-xs">Carregando desafios...</p>
         </div>
       ) : quests.length === 0 ? (
         <div className="text-center py-12 px-4 bg-gray-50 rounded-3xl border border-gray-100">
           <p className="text-base font-semibold text-gray-700">Nenhum desafio ativo</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
             Clique no botão acima para criar o primeiro desafio fotográfico!
           </p>
         </div>
@@ -283,7 +283,7 @@ export function HostQuestsManager({ slug, hostKey }: HostQuestsManagerProps) {
                     </p>
                   )}
                   <div className="mt-2 flex items-center gap-1.5">
-                    <span className="text-[11px] font-semibold bg-rose-50 text-[#cb7d87] border border-[#cb7d87]/20 px-2 py-0.5 rounded-full">
+                    <span className="text-[11px] font-semibold bg-rose-50 text-marsala-ink border border-[#cb7d87]/20 px-2 py-0.5 rounded-full">
                       {quest.completedCount} {quest.completedCount === 1 ? "foto" : "fotos"} enviadas
                     </span>
                   </div>

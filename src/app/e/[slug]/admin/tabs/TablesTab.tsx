@@ -51,12 +51,12 @@ export function TablesTab({ slug, hostKey, eventTitle, tables, onTablesCreated }
             max="50"
             value={newTableCount}
             onChange={(e) => setNewTableCount(Number(e.target.value))}
-            className="w-20 px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-center text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#cb7d87]"
+            className="w-20 px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-xs text-center text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-marsala-ink"
           />
           <button
             onClick={handleGenerateTables}
             disabled={isGeneratingTables}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#cb7d87] hover:bg-[#b86a76] disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-marsala-ink hover:bg-marsala-ink-hover disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{isGeneratingTables ? "Gerando..." : "Adicionar Mesas"}</span>

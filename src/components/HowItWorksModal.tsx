@@ -117,7 +117,7 @@ export function HowItWorksModal({
   const steps = [
     {
       icon: Camera,
-      iconColor: "text-[#cb7d87]",
+      iconColor: "text-marsala-ink",
       badgeBg: "bg-[#cb7d87]/15",
       title: "1. Tire ou Escolha Fotos",
       desc: "Toque em 'Tirar Foto' para abrir a câmera direto no seu celular, ou em 'Galeria' para enviar fotos já salvas. A foto é comprimida no seu aparelho para carregar em menos de 1 segundo!",
@@ -127,7 +127,7 @@ export function HowItWorksModal({
       iconColor: "text-[#5a6248]",
       badgeBg: "bg-[#5a6248]/15",
       title: "2. Seu Nome e Dedicatória",
-      desc: "Assine com seu nome e deixe um recado carinhoso para os noivos. Se você escaneou o QR Code na mesa, suas fotos já ficam marcadas com o nome da sua mesa!",
+      desc: "Assine com seu nome e deixe uma dedicatória carinhosa para os noivos. Se você escaneou o QR Code na mesa, suas fotos já ficam marcadas com o nome da sua mesa!",
     },
     {
       icon: Tv,
@@ -153,7 +153,7 @@ export function HowItWorksModal({
     {
       icon: Download,
       iconColor: "text-[#5a6248]",
-      badgeBg: "bg-[#7c8764]/15",
+      badgeBg: "bg-sage-ink/15",
       title: "6. Baixe suas Lembranças",
       desc: "Toque em qualquer foto na galeria para vê-la em tamanho grande e use o botão de download para salvar no seu celular em alta resolução.",
     },
@@ -166,10 +166,10 @@ export function HowItWorksModal({
         <button
           type="button"
           onClick={handleOpen}
-          className={`flex items-center gap-1.5 text-xs text-[#5a6248] hover:text-[#cb7d87] bg-[#fffaf5] hover:bg-[#fbead6] px-3 py-1.5 rounded-full border border-[#cb7d87]/25 shadow-xs transition-colors font-medium active:scale-95 ${className}`}
+          className={`flex items-center gap-1.5 text-xs text-[#5a6248] hover:text-marsala-ink bg-[#fffaf5] hover:bg-[#fbead6] px-3 py-1.5 rounded-full border border-[#cb7d87]/25 shadow-xs transition-colors font-medium active:scale-95 ${className}`}
           title="Como funciona a plataforma"
         >
-          <HelpCircle className="w-3.5 h-3.5 text-[#cb7d87]" />
+          <HelpCircle className="w-3.5 h-3.5 text-marsala-ink" />
           <span className="hidden sm:inline">{buttonText}</span>
           <span className="sm:hidden font-bold">?</span>
         </button>
@@ -179,11 +179,11 @@ export function HowItWorksModal({
         <button
           type="button"
           onClick={handleOpen}
-          className={`pointer-events-auto flex items-center justify-center w-12 h-12 bg-[#fffaf5] hover:bg-[#fbead6] active:scale-95 text-[#5a6248] hover:text-[#cb7d87] rounded-full shadow-[0_6px_20px_rgba(90,98,72,0.22)] transition-all duration-200 border border-[#cb7d87]/35 ${className}`}
+          className={`pointer-events-auto flex items-center justify-center w-12 h-12 bg-[#fffaf5] hover:bg-[#fbead6] active:scale-95 text-[#5a6248] hover:text-marsala-ink rounded-full shadow-[0_6px_20px_rgba(90,98,72,0.22)] transition-all duration-200 border border-[#cb7d87]/35 ${className}`}
           title="Como funciona a plataforma?"
           aria-label="Como funciona?"
         >
-          <HelpCircle className="w-6 h-6 text-[#cb7d87]" />
+          <HelpCircle className="w-6 h-6 text-marsala-ink" />
         </button>
       )}
 
@@ -191,11 +191,11 @@ export function HowItWorksModal({
         <button
           type="button"
           onClick={handleOpen}
-          className={`p-1.5 text-[#5a6248] hover:text-[#cb7d87] bg-[#fffaf5] hover:bg-[#fbead6] rounded-full transition-colors ${className}`}
+          className={`p-1.5 text-[#5a6248] hover:text-marsala-ink bg-[#fffaf5] hover:bg-[#fbead6] rounded-full transition-colors ${className}`}
           title="Como funciona a plataforma"
           aria-label="Como funciona"
         >
-          <HelpCircle className="w-4 h-4 text-[#cb7d87]" />
+          <HelpCircle className="w-4 h-4 text-marsala-ink" />
         </button>
       )}
 
@@ -218,7 +218,7 @@ export function HowItWorksModal({
               <button
                 type="button"
                 onClick={handleClose}
-                className="absolute top-4 right-4 p-2 text-[#5a6248] hover:text-[#cb7d87] hover:bg-[#fbead6] rounded-full transition-colors z-10"
+                className="absolute top-4 right-4 p-2 text-[#5a6248] hover:text-marsala-ink hover:bg-[#fbead6] rounded-full transition-colors z-10"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -229,14 +229,14 @@ export function HowItWorksModal({
                 <div className="inline-flex items-center justify-center p-2.5 rounded-full bg-[#cb7d87]/15 mb-2.5">
                   <MonogramLogo size={44} color="#cb7d87" />
                 </div>
-                <div className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.2em] text-[#cb7d87] font-semibold">
+                <div className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.2em] text-marsala-ink font-semibold">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Guia do Convidado</span>
                 </div>
                 <h3 id="how-it-works-title" className="font-serif text-2xl sm:text-3xl text-[#5a6248] mt-1 font-light">
                   Como Funciona o Photo Party
                 </h3>
-                <p className="text-xs text-[#7c8764] mt-1.5 max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-sage-ink mt-1.5 max-w-sm mx-auto leading-relaxed">
                   Nossa galeria ao vivo e colaborativa. Tire fotos, deixe recados e celebre cada detalhe conosco!
                 </p>
               </div>
@@ -259,7 +259,7 @@ export function HowItWorksModal({
                         <h4 className="font-serif text-base font-semibold text-[#5a6248] leading-snug">
                           {step.title}
                         </h4>
-                        <p className="text-xs text-[#7c8764] mt-0.5 leading-relaxed">
+                        <p className="text-xs text-sage-ink mt-0.5 leading-relaxed">
                           {step.desc}
                         </p>
                       </div>
@@ -273,7 +273,7 @@ export function HowItWorksModal({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="w-full flex items-center justify-center gap-2 bg-[#cb7d87] hover:bg-[#b86a76] active:scale-[0.99] text-[#fffaf5] py-3.5 rounded-2xl font-serif text-lg tracking-wide shadow-md transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-marsala-ink hover:bg-marsala-ink-hover active:scale-[0.99] text-[#fffaf5] py-3.5 rounded-2xl font-serif text-lg tracking-wide shadow-md transition-all"
                 >
                   <PartyPopper className="w-5 h-5 text-[#ebca90]" />
                   <span>Entendi, vamos comemorar!</span>

@@ -36,8 +36,8 @@ type AdminTab = "photos" | "tables" | "quests" | "chat" | "moments" | "bundle" |
 const ADMIN_TABS: Array<{ id: AdminTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "photos", label: "Moderação de Fotos", icon: Camera },
   { id: "tables", label: "Mesas & Cartões QR", icon: QrCode },
-  { id: "quests", label: "Desafios de Fotos", icon: Sparkles },
-  { id: "chat", label: "Mural de Recados", icon: MessageSquare },
+  { id: "quests", label: "Desafios", icon: Sparkles },
+  { id: "chat", label: "Recados", icon: MessageSquare },
   { id: "moments", label: "Cronograma de Momentos", icon: Clock },
   { id: "bundle", label: "Photo Bundle (ZIP)", icon: Download },
   { id: "settings", label: "Configurações", icon: Settings },
@@ -84,14 +84,14 @@ export function HostAdminClient({
     try {
       await fetch("/api/admin/logout", { method: "POST" });
     } finally {
-      router.replace("/admin");
+      router.replace("/");
       router.refresh();
     }
   };
 
   // Copy management link
   const copyAdminLink = () => {
-    const fullUrl = `${window.location.origin}/admin`;
+    const fullUrl = `${window.location.origin}/`;
     navigator.clipboard.writeText(fullUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
@@ -116,18 +116,18 @@ export function HostAdminClient({
       {/* Top Navbar / Header */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-6 border-b border-gray-100">
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#cb7d87] flex items-center justify-center shadow-md shadow-[#cb7d87]/20 shrink-0 ring-2 ring-[#cb7d87]/15">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-marsala-ink flex items-center justify-center shadow-md shadow-[#cb7d87]/20 shrink-0 ring-2 ring-[#cb7d87]/15">
             <MonogramLogo size={26} color="#ffffff" />
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-50 text-[#cb7d87] border border-[#cb7d87]/20 px-2.5 py-0.5 rounded-full shrink-0">
-                <Sparkles className="w-3 h-3 text-[#cb7d87]" />
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-50 text-marsala-ink border border-[#cb7d87]/20 px-2.5 py-0.5 rounded-full shrink-0">
+                <Sparkles className="w-3 h-3 text-marsala-ink" />
                 <span>Olá, {loggedUser || "Noivos"} ✨</span>
               </span>
               <span
-                className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
+                className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
                   event.isUploadClosed
                     ? "bg-red-50 text-red-700 border-red-200"
                     : "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -147,7 +147,7 @@ export function HostAdminClient({
           <Link
             href={`/e/${event.slug}`}
             target="_blank"
-            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-[#cb7d87] bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors whitespace-nowrap"
+            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-marsala-ink bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors whitespace-nowrap"
           >
             <span>Ver Galeria</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -156,24 +156,24 @@ export function HostAdminClient({
           <Link
             href={`/e/${event.slug}/slideshow`}
             target="_blank"
-            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-[#cb7d87] bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors whitespace-nowrap"
+            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-marsala-ink bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors whitespace-nowrap"
           >
-            <Tv className="w-3.5 h-3.5 text-[#cb7d87]" />
+            <Tv className="w-3.5 h-3.5 text-marsala-ink" />
             <span>Modo Telão</span>
           </Link>
 
           <Link
             href={`/e/${event.slug}/guestbook`}
             target="_blank"
-            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-[#cb7d87] bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors whitespace-nowrap"
+            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-marsala-ink bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors whitespace-nowrap"
           >
-            <BookOpen className="w-3.5 h-3.5 text-[#cb7d87]" />
+            <BookOpen className="w-3.5 h-3.5 text-marsala-ink" />
             <span>Livro</span>
           </Link>
 
           <button
             onClick={copyAdminLink}
-            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-[#cb7d87] bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors cursor-pointer whitespace-nowrap"
+            className="shrink-0 flex items-center justify-center gap-1.5 text-xs text-gray-700 hover:text-marsala-ink bg-gray-50 hover:bg-rose-50/50 px-3 py-2 rounded-xl border border-gray-200 transition-colors cursor-pointer whitespace-nowrap"
             title="Copiar link da área de administração"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -211,8 +211,8 @@ export function HostAdminClient({
           <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">Pendentes</p>
         </div>
         <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-xs text-center">
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#cb7d87]">{tables.length}</span>
-          <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">Mesas Registadas</p>
+          <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-marsala-ink">{tables.length}</span>
+          <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">Mesas</p>
         </div>
       </div>
 
@@ -224,14 +224,14 @@ export function HostAdminClient({
             onClick={() => setActiveTab(id)}
             className={`shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === id
-                ? "bg-[#cb7d87] text-white shadow-sm shadow-[#cb7d87]/25"
-                : "bg-gray-100 text-gray-600 hover:bg-rose-50 hover:text-[#cb7d87]"
+                ? "bg-marsala-ink text-white shadow-sm shadow-[#cb7d87]/25"
+                : "bg-gray-100 text-gray-600 hover:bg-rose-50 hover:text-marsala-ink"
             }`}
           >
             <Icon className="w-4 h-4" />
             <span>{label}</span>
             {id === "photos" && pendingCount > 0 && (
-              <span className="bg-amber-400 text-gray-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+              <span className="bg-amber-400 text-gray-950 text-[11px] px-1.5 py-0.2 rounded-full font-bold">
                 {pendingCount}
               </span>
             )}

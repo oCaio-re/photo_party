@@ -130,7 +130,7 @@ export function PhotosModerationTab({
                     className="w-full h-full object-cover"
                   />
                   <span
-                    className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase backdrop-blur-xs ${
+                    className={`absolute top-2 left-2 text-[11px] px-2 py-0.5 rounded-full font-semibold uppercase backdrop-blur-xs ${
                       photo.status === "approved"
                         ? "bg-emerald-600/95 text-white"
                         : photo.status === "pending"
@@ -145,7 +145,7 @@ export function PhotosModerationTab({
                       : "Oculta"}
                   </span>
                   {photo.tableIdentifier && (
-                    <span className="absolute bottom-2 left-2 text-[10px] bg-gray-900/80 backdrop-blur-xs text-white px-2 py-0.5 rounded-full font-medium">
+                    <span className="absolute bottom-2 left-2 text-[11px] bg-gray-900/80 backdrop-blur-xs text-white px-2 py-0.5 rounded-full font-medium">
                       {photo.tableIdentifier}
                     </span>
                   )}
@@ -154,7 +154,7 @@ export function PhotosModerationTab({
                 <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
                   <div>
                     {photo.guestName && (
-                      <p className="text-xs font-semibold text-[#cb7d87] truncate">
+                      <p className="text-xs font-semibold text-marsala-ink truncate">
                         {photo.guestName}
                       </p>
                     )}
@@ -171,7 +171,7 @@ export function PhotosModerationTab({
                         {photo.likeCount || 0}
                       </span>
                       <span className="flex items-center gap-1 font-medium">
-                        <MessageSquare className="w-3.5 h-3.5 text-[#cb7d87]" />
+                        <MessageSquare className="w-3.5 h-3.5 text-marsala-ink" />
                         {photo.commentCount || 0}
                       </span>
                     </div>
@@ -182,7 +182,7 @@ export function PhotosModerationTab({
                     {photo.status !== "approved" && (
                       <button
                         onClick={() => handlePhotoStatus(photo.id, "approved")}
-                        className="flex-1 p-1 sm:p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        className="flex-1 p-1 sm:p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl text-[11px] sm:text-[11px] font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
                         title="Aprovar Foto"
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
@@ -193,7 +193,7 @@ export function PhotosModerationTab({
                     {photo.status !== "hidden" && (
                       <button
                         onClick={() => handlePhotoStatus(photo.id, "hidden")}
-                        className="flex-1 p-1 sm:p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        className="flex-1 p-1 sm:p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl text-[11px] sm:text-[11px] font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
                         title="Ocultar Foto"
                       >
                         <EyeOff className="w-3.5 h-3.5" />
@@ -203,7 +203,7 @@ export function PhotosModerationTab({
 
                     <button
                       onClick={() => setPhotoToDelete(photo)}
-                      className="p-1 sm:p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] transition-colors cursor-pointer shrink-0"
+                      className="p-1 sm:p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg sm:rounded-xl text-[11px] sm:text-[11px] transition-colors cursor-pointer shrink-0"
                       title="Excluir Foto"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
